@@ -1,8 +1,8 @@
-package in.rcard.fes.copy
+package in.rcard.fes.copy.domain
 
 import in.rcard.fes.Decider
-import in.rcard.fes.copy.Domain.{CopyState, isRegistered}
-import in.rcard.fes.copy.Event.Registered
+import in.rcard.fes.copy.domain.Domain.{CopyState, isRegistered}
+import in.rcard.fes.copy.domain.Event.Registered
 import in.rcard.yaes.{Raise, raises}
 
 class CopyDecider extends Decider[Command, Event, CopyState, Error] {

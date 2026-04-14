@@ -1,6 +1,7 @@
-package in.rcard.fes.copy
+package in.rcard.fes.copy.domain
 
-import in.rcard.fes.copy.Domain.*
+import in.rcard.fes.copy.domain.Domain.*
+import in.rcard.fes.copy.domain.{Command, CopyDecider, Error, Event}
 import in.rcard.fes.utils.RaiseSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

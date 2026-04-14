@@ -1,4 +1,4 @@
-package in.rcard.fes.copy
+package in.rcard.fes.copy.domain
 
 object Domain {
 
