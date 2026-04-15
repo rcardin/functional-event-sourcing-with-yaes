@@ -1,14 +1,13 @@
 package in.rcard.fes.copy.application
 
 import in.rcard.fes.copy.application.Routes.RegisterCopyRoute
-import in.rcard.fes.copy.domain.Domain
 import in.rcard.fes.copy.domain.Domain.*
 import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase
 import in.rcard.yaes.Reader
 import in.rcard.yaes.http.core.Method.POST
+import in.rcard.yaes.http.server.{Request, Routes as YaesRoutes}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import in.rcard.yaes.http.server.{Request, Routes as YaesRoutes}
 
 private val COPY_ID = CopyId("copy1")
 
