@@ -7,6 +7,7 @@ lazy val dependencies =
     val yaesVersion      = "0.17.0"
     val yaesCore         = "in.rcard.yaes" %% "yaes-core"        % yaesVersion
     val yaesHttpServer   = "in.rcard.yaes" %% "yaes-http-server" % yaesVersion
+    val yaesHttpCirce    = "in.rcard.yaes" %% "yaes-http-circe"  % yaesVersion
   }
 
 lazy val root = (project in file("."))

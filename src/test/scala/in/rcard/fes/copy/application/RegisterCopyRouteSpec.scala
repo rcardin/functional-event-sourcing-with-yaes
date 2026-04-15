@@ -21,7 +21,7 @@ class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
       override def registerCopy(): CopyId = COPY_ID
     }
 
-    val request = Request(POST, "/copies", Map(), "", Map())
+    val request = Request(POST, "/copies", Map.empty, "", Map.empty)
 
     val actualResponse = YaesRoutes(Reader.run(registerCopyUseCase) {
       underTest.registerCopyRoute
