@@ -1,5 +1,14 @@
 val scala3Version = "3.8.3"
 
+lazy val dependencies =
+  new {
+    val scalatestVersion = "3.2.20"
+    val scalatest        = "org.scalatest" %% "scalatest"        % scalatestVersion
+    val yaesVersion      = "0.17.0"
+    val yaesCore         = "in.rcard.yaes" %% "yaes-core"        % yaesVersion
+    val yaesHttpServer   = "in.rcard.yaes" %% "yaes-http-server" % yaesVersion
+  }
+
 lazy val root = (project in file("."))
   .settings(
     name         := "functional-event-sourcing-with-yaes",
@@ -9,8 +18,9 @@ lazy val root = (project in file("."))
     scalacOptions += "-target:25",
     javacOptions ++= Seq("-source", "25", "-target", "25"),
     libraryDependencies ++= Seq(
-      "in.rcard.yaes" %% "yaes-core"  % "0.17.0",
-      "org.scalatest"  %% "scalatest" % "3.2.20" % Test
+      dependencies.yaesCore,
+      dependencies.yaesHttpServer,
+      dependencies.scalatest % Test
     ),
     Test / logBuffered       := false,
     Test / parallelExecution := false,
