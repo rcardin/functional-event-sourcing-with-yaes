@@ -10,6 +10,11 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 private val COPY_ID = CopyId("copy1")
+private val REGISTER_COPY_REQUEST_JSON = """{
+  "isbn": "978-3-954-76392-4",
+  "title": "Foundation",
+  "author": "Isaac Asimov"
+}"""
 
 class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
 
@@ -21,13 +26,13 @@ class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
       override def registerCopy(): CopyId = COPY_ID
     }
 
-    val request = Request(POST, "/copies", Map.empty, "", Map.empty)
+    val request = Request(POST, "/copies", Map.empty, REGISTER_COPY_REQUEST_JSON, Map.empty)
 
     val actualResponse = YaesRoutes(Reader.run(registerCopyUseCase) {
       underTest.registerCopyRoute
     }).handle(request)
 
     actualResponse.status shouldBe 201
-    actualResponse.body shouldBe "Ok"
+    actualResponse.body shouldBe "\"Ok\""
   }
 }

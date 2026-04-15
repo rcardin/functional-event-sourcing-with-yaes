@@ -4,6 +4,8 @@ lazy val dependencies =
   new {
     val scalatestVersion = "3.2.20"
     val scalatest        = "org.scalatest" %% "scalatest"        % scalatestVersion
+    val circeVersion     = "0.14.15"
+    val circe            = "io.circe"      %% "circe-generic"    % circeVersion
     val yaesVersion      = "0.17.0"
     val yaesCore         = "in.rcard.yaes" %% "yaes-core"        % yaesVersion
     val yaesHttpServer   = "in.rcard.yaes" %% "yaes-http-server" % yaesVersion
@@ -21,6 +23,8 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       dependencies.yaesCore,
       dependencies.yaesHttpServer,
+      dependencies.yaesHttpCirce,
+      dependencies.circe,
       dependencies.scalatest % Test
     ),
     Test / logBuffered       := false,
