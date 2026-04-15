@@ -27,6 +27,8 @@ object Routes {
       val registerCopyRoute: Route[NoParams, NoQueryParams] = POST(p"/copies") { req =>
         Raise.recover {
           val dto = req.as[RegisterCopyDTO]
+          // FIXME The Created response should return the location of the created resource. 
+          //       Moreover we should have a ctor with the body and another one without it.
           Response.created[String]("Ok")
         } { error =>
           Response.badRequest("Ko")

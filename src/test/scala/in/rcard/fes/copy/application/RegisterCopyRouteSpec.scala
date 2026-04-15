@@ -9,7 +9,7 @@ import in.rcard.yaes.http.server.{Request, Routes as YaesRoutes}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-private val COPY_ID = CopyId("copy1")
+private val COPY_ID                    = CopyId("copy1")
 private val REGISTER_COPY_REQUEST_JSON = """{
   "isbn": "978-3-954-76392-4",
   "title": "Foundation",
@@ -20,7 +20,7 @@ class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
 
   private val underTest: Reader[RegisterCopyUseCase] ?=> RegisterCopyRoute = RegisterCopyRoute()
 
-  "RegisterCopyRoute" should "be created successfully" in {
+  "RegisterCopyRoute" should "return 201 if the copy is registered successfully" in {
 
     val registerCopyUseCase = new RegisterCopyUseCase {
       override def registerCopy(): CopyId = COPY_ID
@@ -34,5 +34,21 @@ class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
 
     actualResponse.status shouldBe 201
     actualResponse.body shouldBe "\"Ok\""
+  }
+
+  it should "return 400 if the DTO is not valid" in {
+
+    val registerCopyUseCase = new RegisterCopyUseCase {
+      override def registerCopy(): CopyId = fail("This should not be called")
+    }
+
+    val request = Request(POST, "/copies", Map.empty, "{}", Map.empty)
+
+    val actualResponse = YaesRoutes(Reader.run(registerCopyUseCase) {
+      underTest.registerCopyRoute
+    }).handle(request)
+
+    actualResponse.status shouldBe 400
+    actualResponse.body shouldBe "\"Ko\""
   }
 }
