@@ -3,13 +3,15 @@ val scala3Version = "3.8.3"
 lazy val dependencies =
   new {
     val scalatestVersion = "3.2.20"
-    val scalatest        = "org.scalatest" %% "scalatest"        % scalatestVersion
+    val scalatest        = "org.scalatest"      %% "scalatest"        % scalatestVersion
     val circeVersion     = "0.14.15"
-    val circe            = "io.circe"      %% "circe-generic"    % circeVersion
+    val circe            = "io.circe"           %% "circe-generic"    % circeVersion
+    val ironCirceVersion = "3.3.0"
+    val ironCirce        = "io.github.iltotore" %% "iron-circe"       % ironCirceVersion
     val yaesVersion      = "0.17.0"
-    val yaesCore         = "in.rcard.yaes" %% "yaes-core"        % yaesVersion
-    val yaesHttpServer   = "in.rcard.yaes" %% "yaes-http-server" % yaesVersion
-    val yaesHttpCirce    = "in.rcard.yaes" %% "yaes-http-circe"  % yaesVersion
+    val yaesCore         = "in.rcard.yaes"      %% "yaes-core"        % yaesVersion
+    val yaesHttpServer   = "in.rcard.yaes"      %% "yaes-http-server" % yaesVersion
+    val yaesHttpCirce    = "in.rcard.yaes"      %% "yaes-http-circe"  % yaesVersion
   }
 
 lazy val root = (project in file("."))
@@ -25,6 +27,7 @@ lazy val root = (project in file("."))
       dependencies.yaesHttpServer,
       dependencies.yaesHttpCirce,
       dependencies.circe,
+      dependencies.ironCirce,
       dependencies.scalatest % Test
     ),
     Test / logBuffered       := false,

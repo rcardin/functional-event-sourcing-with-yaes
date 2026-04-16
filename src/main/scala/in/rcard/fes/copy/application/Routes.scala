@@ -1,5 +1,6 @@
 package in.rcard.fes.copy.application
 
+import in.rcard.fes.copy.application.constraint.ISBN13
 import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase
 import in.rcard.yaes.http.circe.given
 import in.rcard.yaes.http.server.params.path.NoParams
@@ -8,6 +9,9 @@ import in.rcard.yaes.http.server.routing.Route
 import in.rcard.yaes.http.server.{POST, Response, p}
 import in.rcard.yaes.{Raise, Reader}
 import io.circe.{Decoder, Encoder}
+import io.github.iltotore.iron.*
+import io.github.iltotore.iron.circe.given
+import io.github.iltotore.iron.constraint.all.*
 
 object Routes {
 
@@ -16,8 +20,11 @@ object Routes {
   }
   object RegisterCopyRoute {
 
-    case class RegisterCopyDTO(isbn: String, title: String, author: String)
-        derives Encoder.AsObject,
+    case class RegisterCopyDTO(
+        isbn: String :| ISBN13,
+        title: String :| Not[Blank],
+        author: String :| Not[Blank]
+    ) derives Encoder.AsObject,
           Decoder
 
     def apply()(using Reader[RegisterCopyUseCase]): RegisterCopyRoute = new RegisterCopyRoute {
@@ -27,7 +34,7 @@ object Routes {
       val registerCopyRoute: Route[NoParams, NoQueryParams] = POST(p"/copies") { req =>
         Raise.recover {
           val dto = req.as[RegisterCopyDTO]
-          // FIXME The Created response should return the location of the created resource. 
+          // FIXME The Created response should return the location of the created resource.
           //       Moreover we should have a ctor with the body and another one without it.
           Response.created[String]("Ok")
         } { error =>

@@ -15,6 +15,11 @@ private val REGISTER_COPY_REQUEST_JSON = """{
   "title": "Foundation",
   "author": "Isaac Asimov"
 }"""
+private val REGISTER_COPY_EMPTY_TITLE_REQUEST_JSON = """{
+  "isbn": "not-valid",
+  "title": "",
+  "author": "Isaac Asimov"
+}"""
 
 class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
 
@@ -28,6 +33,7 @@ class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
 
     val request = Request(POST, "/copies", Map.empty, REGISTER_COPY_REQUEST_JSON, Map.empty)
 
+    // FIXME The DI is a bit verbose
     val actualResponse = YaesRoutes(Reader.run(registerCopyUseCase) {
       underTest.registerCopyRoute
     }).handle(request)
@@ -43,6 +49,22 @@ class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
     }
 
     val request = Request(POST, "/copies", Map.empty, "{}", Map.empty)
+
+    val actualResponse = YaesRoutes(Reader.run(registerCopyUseCase) {
+      underTest.registerCopyRoute
+    }).handle(request)
+
+    actualResponse.status shouldBe 400
+    actualResponse.body shouldBe "\"Ko\""
+  }
+
+  it should "return 400 if the use case raises an error" in {
+
+    val registerCopyUseCase = new RegisterCopyUseCase {
+      override def registerCopy(): CopyId = fail("This should not be called")
+    }
+
+    val request = Request(POST, "/copies", Map.empty, REGISTER_COPY_EMPTY_TITLE_REQUEST_JSON, Map.empty)
 
     val actualResponse = YaesRoutes(Reader.run(registerCopyUseCase) {
       underTest.registerCopyRoute
