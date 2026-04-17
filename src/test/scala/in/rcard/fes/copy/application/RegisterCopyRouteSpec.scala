@@ -9,17 +9,25 @@ import in.rcard.yaes.http.server.{Request, Routes as YaesRoutes}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-private val COPY_ID                    = CopyId("copy1")
+private val COPY_ID = CopyId("copy1")
+
 private val REGISTER_COPY_REQUEST_JSON = """{
   "isbn": "978-3-954-76392-4",
   "title": "Foundation",
   "author": "Isaac Asimov"
 }"""
+
 private val REGISTER_COPY_EMPTY_TITLE_REQUEST_JSON = """{
   "isbn": "not-valid",
   "title": "",
   "author": "Isaac Asimov"
 }"""
+
+private val REGISTER_COPY_PARSING_ERROR_RESPONSE_JSON =
+  """{"title":"Validation error","detail":"The request body is not valid. Please check the errors for more details.","errors":[{"detail":"DecodingFailure at .isbn: Missing required field"}]}"""
+
+private val REGISTER_COPY_EMPTY_TITLE_VALIDATION_ERROR_RESPONSE_JSON =
+  """{"title":"Validation error","detail":"The request body is not valid. Please check the errors for more details.","errors":[{"detail":"DecodingFailure at .isbn: Should be a valid ISBN-13"}]}"""
 
 class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
 
@@ -55,7 +63,7 @@ class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
     }).handle(request)
 
     actualResponse.status shouldBe 400
-    actualResponse.body shouldBe "\"Ko\""
+    actualResponse.body shouldBe REGISTER_COPY_PARSING_ERROR_RESPONSE_JSON
   }
 
   it should "return 400 if the use case raises an error" in {
@@ -64,13 +72,14 @@ class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
       override def registerCopy(): CopyId = fail("This should not be called")
     }
 
-    val request = Request(POST, "/copies", Map.empty, REGISTER_COPY_EMPTY_TITLE_REQUEST_JSON, Map.empty)
+    val request =
+      Request(POST, "/copies", Map.empty, REGISTER_COPY_EMPTY_TITLE_REQUEST_JSON, Map.empty)
 
     val actualResponse = YaesRoutes(Reader.run(registerCopyUseCase) {
       underTest.registerCopyRoute
     }).handle(request)
 
     actualResponse.status shouldBe 400
-    actualResponse.body shouldBe "\"Ko\""
+    actualResponse.body shouldBe REGISTER_COPY_EMPTY_TITLE_VALIDATION_ERROR_RESPONSE_JSON
   }
 }
