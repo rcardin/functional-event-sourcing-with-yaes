@@ -1,6 +1,7 @@
 package in.rcard.fes.copy.application
 
 import in.rcard.fes.copy.application.Routes.RegisterCopyRoute
+import in.rcard.fes.copy.domain.{Command, Domain}
 import in.rcard.fes.copy.domain.Domain.*
 import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase
 import in.rcard.yaes
@@ -12,10 +13,18 @@ import org.scalatest.matchers.should.Matchers
 
 private val COPY_ID = CopyId("copy1")
 
-private val REGISTER_COPY_REQUEST_JSON = """{
-  "isbn": "978-3-954-76392-4",
-  "title": "Foundation",
-  "author": "Isaac Asimov"
+private val FOUNDATION_ISBN_VALUE   = "978-3-954-76392-4"
+private val FOUNDATION_TITLE_VALUE  = "Foundation"
+private val FOUNDATION_AUTHOR_VALUE = "Isaac Asimov"
+
+private val FOUNDATION_ISBN   = Domain.ISBN(FOUNDATION_ISBN_VALUE)
+private val FOUNDATION_TITLE  = Domain.Title(FOUNDATION_TITLE_VALUE)
+private val FOUNDATION_AUTHOR = Domain.Author(FOUNDATION_AUTHOR_VALUE)
+
+private val REGISTER_COPY_REQUEST_JSON = s"""{
+  "isbn": "$FOUNDATION_ISBN_VALUE",
+  "title": "$FOUNDATION_TITLE_VALUE",
+  "author": "$FOUNDATION_AUTHOR_VALUE"
 }"""
 
 private val REGISTER_COPY_EMPTY_TITLE_REQUEST_JSON = """{
@@ -31,7 +40,14 @@ private val REGISTER_COPY_EMPTY_TITLE_VALIDATION_ERROR_RESPONSE_JSON =
   """{"title":"Validation error","detail":"The request body is not valid. Please check the errors for more details.","errors":[{"detail":"DecodingFailure at .isbn: Should be a valid ISBN-13"}]}"""
 
 given Reader[RegisterCopyUseCase] = new yaes.Reader[RegisterCopyUseCase] {
-  override def value: RegisterCopyUseCase = () => COPY_ID
+  override def value: RegisterCopyUseCase = cmd => {
+    if (cmd.isbn == FOUNDATION_ISBN) {
+      COPY_ID
+    } else {
+      // FIXME Add domain errors
+      COPY_ID
+    }
+  }
 }
 
 class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
@@ -39,10 +55,6 @@ class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
   private val underTest = RegisterCopyRoute()
 
   "RegisterCopyRoute" should "return 201 if the copy is registered successfully" in {
-
-    val registerCopyUseCase = new RegisterCopyUseCase {
-      override def registerCopy(): CopyId = COPY_ID
-    }
 
     val request = Request(POST, "/copies", Map.empty, REGISTER_COPY_REQUEST_JSON, Map.empty)
 
