@@ -1,7 +1,7 @@
 package in.rcard.fes.copy.application
 
 import in.rcard.fes.copy.application.Routes.RegisterCopyRoute
-import in.rcard.fes.copy.domain.{Command, Domain}
+import in.rcard.fes.copy.domain.Domain
 import in.rcard.fes.copy.domain.Domain.*
 import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase
 import in.rcard.yaes
@@ -40,8 +40,8 @@ private val REGISTER_COPY_EMPTY_TITLE_VALIDATION_ERROR_RESPONSE_JSON =
   """{"title":"Validation error","detail":"The request body is not valid. Please check the errors for more details.","errors":[{"detail":"DecodingFailure at .isbn: Should be a valid ISBN-13"}]}"""
 
 given Reader[RegisterCopyUseCase] = new yaes.Reader[RegisterCopyUseCase] {
-  override def value: RegisterCopyUseCase = cmd => {
-    if (cmd.isbn == FOUNDATION_ISBN) {
+  override def value: RegisterCopyUseCase = copyToRegister => {
+    if (copyToRegister.isbn == FOUNDATION_ISBN) {
       COPY_ID
     } else {
       // FIXME Add domain errors
