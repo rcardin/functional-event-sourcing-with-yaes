@@ -12,6 +12,7 @@ lazy val dependencies =
     val yaesCore         = "in.rcard.yaes"      %% "yaes-core"        % yaesVersion
     val yaesHttpServer   = "in.rcard.yaes"      %% "yaes-http-server" % yaesVersion
     val yaesHttpCirce    = "in.rcard.yaes"      %% "yaes-http-circe"  % yaesVersion
+    val yaesSlf4j        = "in.rcard.yaes"      %% "yaes-slf4j"       % yaesVersion
   }
 
 lazy val root = (project in file("."))
@@ -24,6 +25,7 @@ lazy val root = (project in file("."))
     javacOptions ++= Seq("-source", "25", "-target", "25"),
     libraryDependencies ++= Seq(
       dependencies.yaesCore,
+      dependencies.yaesSlf4j,
       dependencies.yaesHttpServer,
       dependencies.yaesHttpCirce,
       dependencies.circe,

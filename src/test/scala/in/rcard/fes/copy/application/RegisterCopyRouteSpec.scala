@@ -52,7 +52,7 @@ given Reader[RegisterCopyUseCase] = new yaes.Reader[RegisterCopyUseCase] {
 
 class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
 
-  private val underTest = RegisterCopyRoute()
+  private val underTest = RegisterCopyRoute.live
 
   "RegisterCopyRoute" should "return 201 if the copy is registered successfully" in {
 
