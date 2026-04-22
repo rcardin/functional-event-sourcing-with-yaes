@@ -1,11 +1,8 @@
 package in.rcard.fes.copy.application
 
-import in.rcard.fes.copy.application.Routes.RegisterCopyRoute
 import in.rcard.fes.copy.domain.Domain
 import in.rcard.fes.copy.domain.Domain.*
 import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase
-import in.rcard.yaes
-import in.rcard.yaes.Reader
 import in.rcard.yaes.http.core.Method.POST
 import in.rcard.yaes.http.server.{Request, Routes as YaesRoutes}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -39,20 +36,20 @@ private val REGISTER_COPY_PARSING_ERROR_RESPONSE_JSON =
 private val REGISTER_COPY_EMPTY_TITLE_VALIDATION_ERROR_RESPONSE_JSON =
   """{"title":"Validation error","detail":"The request body is not valid. Please check the errors for more details.","errors":[{"detail":"DecodingFailure at .isbn: Should be a valid ISBN-13"}]}"""
 
-given Reader[RegisterCopyUseCase] = new yaes.Reader[RegisterCopyUseCase] {
-  override def value: RegisterCopyUseCase = copyToRegister => {
-    if (copyToRegister.isbn == FOUNDATION_ISBN) {
+class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
+
+  private val mockedRegisterCopyUseCase = new RegisterCopyUseCase {
+    override def registerCopy(copyToRegister: RegisterCopyUseCase.CopyToRegister): CopyId = if (
+      copyToRegister.isbn == FOUNDATION_ISBN
+    ) {
       COPY_ID
     } else {
       // FIXME Add domain errors
       COPY_ID
     }
   }
-}
 
-class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
-
-  private val underTest = RegisterCopyRoute.live
+  private val underTest = RegisterCopyRouteLive(mockedRegisterCopyUseCase)
 
   "RegisterCopyRoute" should "return 201 if the copy is registered successfully" in {
 

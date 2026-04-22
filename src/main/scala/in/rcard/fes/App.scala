@@ -1,10 +1,10 @@
 package in.rcard.fes
 
 import in.rcard.fes.copy.application.RegisterCopyRoute
-import in.rcard.fes.copy.domain.usecase.{CopyIdGenerator, RegisterCopyUseCase}
+import in.rcard.yaes.Reader.read
 import in.rcard.yaes.http.server.{ServerDef, YaesServer}
 import in.rcard.yaes.slf4j.Slf4jLog
-import in.rcard.yaes.{Clock, Input, Output, Random, Reader, Shutdown, Sync, System, YaesApp}
+import in.rcard.yaes.{Clock, Input, Output, Random, Shutdown, Sync, System, YaesApp}
 
 class App extends YaesApp {
 
@@ -17,12 +17,8 @@ class App extends YaesApp {
   }
 
   private def server(): ServerDef = {
-    Reader.run(CopyIdGenerator.live) {
-      Reader.run(RegisterCopyUseCase.live) {
-        YaesServer.route(
-          RegisterCopyRoute.live.registerCopyRoute
-        )
-      }
-    }
+    YaesServer.route(
+      read[RegisterCopyRoute].registerCopyRoute
+    )
   }
 }

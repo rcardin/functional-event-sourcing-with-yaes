@@ -23,7 +23,4 @@ object Routes {
     ) derives Encoder.AsObject,
           Decoder
   }
-
-  val live: Reader[RegisterCopyUseCase] ?=> Route[NoParams, NoQueryParams] =
-    RegisterCopyRoute.live.registerCopyRoute
 }
