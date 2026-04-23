@@ -4,11 +4,13 @@ import in.rcard.fes.copy.application.RegisterCopyRoute.RegisterCopyDTO
 import in.rcard.fes.copy.application.Routes.ProblemDetailsDTO
 import in.rcard.fes.copy.application.Routes.ProblemDetailsDTO.ErrorDTO
 import in.rcard.fes.copy.application.constraint.ISBN13
+import in.rcard.fes.copy.domain.Domain.{Author, ISBN, Title}
+import in.rcard.fes.copy.domain.Error
 import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase
 import in.rcard.fes.utils.reader
 import in.rcard.yaes.Reader.read
 import in.rcard.yaes.http.circe.given
-import in.rcard.yaes.http.core.DecodingError
+import in.rcard.yaes.http.core.{BodyCodec, DecodingError, Headers}
 import in.rcard.yaes.http.core.DecodingError.{ParseError, ValidationError}
 import in.rcard.yaes.http.server.params.path.NoParams
 import in.rcard.yaes.http.server.params.query.NoQueryParams
@@ -37,6 +39,13 @@ object RegisterCopyRoute {
     override val registerCopyRoute: Route[NoParams, NoQueryParams] = POST(p"/copies") { req =>
       Raise.recover {
         val dto = req.as[RegisterCopyDTO]
+        val newCopyId = registerCopyUseCase.registerCopy(
+          RegisterCopyUseCase.CopyToRegister(
+            isbn = ISBN(dto.isbn),
+            title = Title(dto.title),
+            author = Author(dto.author)
+          )
+        )
         // FIXME The Created response should return the location of the created resource.
         //       Moreover we should have a ctor with the body and another one without it.
         Response.created[String]("Ok")
@@ -65,11 +74,26 @@ object RegisterCopyRoute {
               )
             )
           )
+        case Error.AlreadyRegistered(copyId) =>
+          Response(
+            status = 409,
+            headers = Map(Headers.ContentType -> "application/json"),
+            // FIXME Creating a body for a generic response is a bit cumbersome
+            body = summon[BodyCodec[ProblemDetailsDTO]].encode(
+              ProblemDetailsDTO(
+                title = "Conflict",
+                detail = "Copy already registered.",
+                errors = Seq(
+                  ErrorDTO(
+                    detail = s"The copy with id '${copyId}' is already registered."
+                  )
+                )
+              )
+            )
+          )
       }
     }
-
   }
 
-  given Reader[RegisterCopyRoute] reads RegisterCopyUseCase = reader(RegisterCopyRoute(read[RegisterCopyUseCase])
-  )
+  given Reader[RegisterCopyRoute] reads RegisterCopyUseCase = reader(RegisterCopyRoute(read[RegisterCopyUseCase]))
 }
