@@ -23,42 +23,6 @@ import io.github.iltotore.iron.constraint.all.*
 trait RegisterCopyRoute {
   val registerCopyRoute: Route[NoParams, NoQueryParams]
 }
-class RegisterCopyRouteLive(registerCopyUseCase: RegisterCopyUseCase) extends RegisterCopyRoute {
-
-  override val registerCopyRoute: Route[NoParams, NoQueryParams] = POST(p"/copies") { req =>
-    Raise.recover {
-      val dto = req.as[RegisterCopyDTO]
-      // FIXME The Created response should return the location of the created resource.
-      //       Moreover we should have a ctor with the body and another one without it.
-      Response.created[String]("Ok")
-    } {
-      case error: ParseError =>
-        Response.badRequest[ProblemDetailsDTO](
-          ProblemDetailsDTO(
-            title = "Invalid request body",
-            detail = "The request body could not be parsed. Please check the syntax.",
-            errors = Seq(
-              ErrorDTO(
-                detail = error.message
-              )
-            )
-          )
-        )
-      case error: ValidationError =>
-        Response.badRequest[ProblemDetailsDTO](
-          ProblemDetailsDTO(
-            title = "Validation error",
-            detail = "The request body is not valid. Please check the errors for more details.",
-            errors = Seq(
-              ErrorDTO(
-                detail = error.message
-              )
-            )
-          )
-        )
-    }
-  }
-}
 object RegisterCopyRoute {
 
   case class RegisterCopyDTO(
@@ -68,7 +32,44 @@ object RegisterCopyRoute {
   ) derives Encoder.AsObject,
         Decoder
 
-  given Reader[RegisterCopyRoute] reads RegisterCopyUseCase = reader(
-    RegisterCopyRouteLive(read[RegisterCopyUseCase])
+  def apply(registerCopyUseCase: RegisterCopyUseCase): RegisterCopyRoute = new RegisterCopyRoute {
+
+    override val registerCopyRoute: Route[NoParams, NoQueryParams] = POST(p"/copies") { req =>
+      Raise.recover {
+        val dto = req.as[RegisterCopyDTO]
+        // FIXME The Created response should return the location of the created resource.
+        //       Moreover we should have a ctor with the body and another one without it.
+        Response.created[String]("Ok")
+      } {
+        case error: ParseError =>
+          Response.badRequest[ProblemDetailsDTO](
+            ProblemDetailsDTO(
+              title = "Invalid request body",
+              detail = "The request body could not be parsed. Please check the syntax.",
+              errors = Seq(
+                ErrorDTO(
+                  detail = error.message
+                )
+              )
+            )
+          )
+        case error: ValidationError =>
+          Response.badRequest[ProblemDetailsDTO](
+            ProblemDetailsDTO(
+              title = "Validation error",
+              detail = "The request body is not valid. Please check the errors for more details.",
+              errors = Seq(
+                ErrorDTO(
+                  detail = error.message
+                )
+              )
+            )
+          )
+      }
+    }
+
+  }
+
+  given Reader[RegisterCopyRoute] reads RegisterCopyUseCase = reader(RegisterCopyRoute(read[RegisterCopyUseCase])
   )
 }

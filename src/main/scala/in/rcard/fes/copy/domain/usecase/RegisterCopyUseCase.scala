@@ -9,24 +9,22 @@ import in.rcard.yaes.{Reader, reads}
 trait RegisterCopyUseCase {
   def registerCopy(copyToRegister: CopyToRegister): CopyId
 }
-class RegisterCopyUseCaseLive(copyIdGenerator: CopyIdGenerator) extends RegisterCopyUseCase {
-  override def registerCopy(copyToRegister: CopyToRegister): CopyId = {
-    copyIdGenerator.generate()
-  }
-}
 object RegisterCopyUseCase {
-  given Reader[RegisterCopyUseCase] reads CopyIdGenerator = 
-    reader(new RegisterCopyUseCaseLive(read[CopyIdGenerator]))
-
   case class CopyToRegister(isbn: ISBN, title: Title, author: Author)
+
+  def apply(copyIdGenerator: CopyIdGenerator): RegisterCopyUseCase = 
+    (copyToRegister: CopyToRegister) => copyIdGenerator.generate()
+  
+  given Reader[RegisterCopyUseCase] reads CopyIdGenerator = 
+    reader(RegisterCopyUseCase(read[CopyIdGenerator]))
 }
 
 trait CopyIdGenerator {
   def generate(): CopyId
 }
-class CopyIdGeneratorLive extends CopyIdGenerator {
-  override def generate(): CopyId = CopyId("1")
-}
 object CopyIdGenerator {
-  given Reader[CopyIdGenerator] = reader(new CopyIdGeneratorLive())
+  
+  def apply(): CopyIdGenerator = () => CopyId("1")
+  
+  given Reader[CopyIdGenerator] = reader(CopyIdGenerator())
 }

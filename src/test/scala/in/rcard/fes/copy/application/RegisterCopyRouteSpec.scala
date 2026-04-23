@@ -49,7 +49,7 @@ class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  private val underTest = RegisterCopyRouteLive(mockedRegisterCopyUseCase)
+  private val underTest = RegisterCopyRoute(mockedRegisterCopyUseCase)
 
   "RegisterCopyRoute" should "return 201 if the copy is registered successfully" in {
 
