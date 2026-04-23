@@ -1,9 +1,10 @@
 package in.rcard.fes.copy.domain.usecase
 
+import in.rcard.fes.CommandHandler
 import in.rcard.fes.copy.domain
-import in.rcard.fes.copy.domain.Error
 import in.rcard.fes.copy.domain.Domain.{Author, CopyId, ISBN, Title}
 import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase.CopyToRegister
+import in.rcard.fes.copy.domain.{Command, Error, Event}
 import in.rcard.fes.utils.reader
 import in.rcard.yaes.Reader.read
 import in.rcard.yaes.{Raise, Reader, raises, reads}
@@ -14,13 +15,13 @@ trait RegisterCopyUseCase {
 object RegisterCopyUseCase {
   case class CopyToRegister(isbn: ISBN, title: Title, author: Author)
 
-  def apply(copyIdGenerator: CopyIdGenerator): RegisterCopyUseCase = new RegisterCopyUseCase {
+  def apply(copyIdGenerator: CopyIdGenerator, commandHandler: CommandHandler[CopyId, Command, Error, Event]): RegisterCopyUseCase = new RegisterCopyUseCase {
     override def registerCopy(copyToRegister: CopyToRegister): CopyId raises Error =
       Raise.raise(Error.AlreadyRegistered(CopyId("1")))
   }
 
-  given Reader[RegisterCopyUseCase] reads CopyIdGenerator =
-    reader(RegisterCopyUseCase(read[CopyIdGenerator]))
+  given Reader[RegisterCopyUseCase] reads CopyIdGenerator reads CommandHandler[CopyId, Command, Error, Event] =
+    reader(RegisterCopyUseCase(read[CopyIdGenerator], read[CommandHandler[CopyId, Command, Error, Event]]))
 }
 
 trait CopyIdGenerator {
