@@ -1,7 +1,8 @@
 package in.rcard.fes.copy.application
 
+import in.rcard.fes.copy.Fixtures.*
 import in.rcard.fes.copy.domain.Domain.*
-import in.rcard.fes.copy.domain.{Domain, Error}
+import in.rcard.fes.copy.domain.Error
 import in.rcard.fes.copy.domain.Error.AlreadyRegistered
 import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase
 import in.rcard.yaes.http.core.Method.POST
@@ -9,19 +10,6 @@ import in.rcard.yaes.http.server.{Request, Routes as YaesRoutes}
 import in.rcard.yaes.{Raise, raises}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-private val COPY_ID = CopyId("copy1")
-
-private val FOUNDATION_ISBN_VALUE   = "978-3-954-76392-4"
-private val FOUNDATION_TITLE_VALUE  = "Foundation"
-private val FOUNDATION_AUTHOR_VALUE = "Isaac Asimov"
-
-private val FOUNDATION_ISBN   = Domain.ISBN(FOUNDATION_ISBN_VALUE)
-private val FOUNDATION_TITLE  = Domain.Title(FOUNDATION_TITLE_VALUE)
-private val FOUNDATION_AUTHOR = Domain.Author(FOUNDATION_AUTHOR_VALUE)
-
-private val ALREADY_REGISTERED_ISBN_VALUE = "978-1-234-56789-7"
-private val ALREADY_REGISTERED_ISBN       = Domain.ISBN(ALREADY_REGISTERED_ISBN_VALUE)
 
 private val REGISTER_COPY_REQUEST_JSON = s"""{
   "isbn": "$FOUNDATION_ISBN_VALUE",

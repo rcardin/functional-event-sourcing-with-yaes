@@ -16,8 +16,15 @@ object RegisterCopyUseCase {
   case class CopyToRegister(isbn: ISBN, title: Title, author: Author)
 
   def apply(copyIdGenerator: CopyIdGenerator, commandHandler: CommandHandler[CopyId, Command, Error, Event]): RegisterCopyUseCase = new RegisterCopyUseCase {
-    override def registerCopy(copyToRegister: CopyToRegister): CopyId raises Error =
-      Raise.raise(Error.AlreadyRegistered(CopyId("1")))
+    override def registerCopy(copyToRegister: CopyToRegister): CopyId raises Error = {
+      val newCopyId = copyIdGenerator.generate()
+      val cmd       = Command.Register(newCopyId, copyToRegister.isbn, copyToRegister.title, copyToRegister.author)
+      val events = commandHandler.handle(newCopyId, cmd)
+      events match {
+        case Event.Registered(copyId, _, _, _) :: Nil => copyId
+        case _ => Raise.raise(Error.UnexpectedError("Unexpected state after copy registration"))
+      }
+    }
   }
 
   given Reader[RegisterCopyUseCase] reads CopyIdGenerator reads CommandHandler[CopyId, Command, Error, Event] =
