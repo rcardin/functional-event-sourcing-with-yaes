@@ -6,12 +6,13 @@ import in.rcard.fes.copy.application.Routes.ProblemDetailsDTO.ErrorDTO
 import in.rcard.fes.copy.application.constraint.ISBN13
 import in.rcard.fes.copy.domain.Domain.{Author, ISBN, Title}
 import in.rcard.fes.copy.domain.Error
+import in.rcard.fes.copy.domain.Error.UnexpectedError
 import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase
 import in.rcard.fes.utils.reader
 import in.rcard.yaes.Reader.read
 import in.rcard.yaes.http.circe.given
-import in.rcard.yaes.http.core.{BodyCodec, DecodingError, Headers}
 import in.rcard.yaes.http.core.DecodingError.{ParseError, ValidationError}
+import in.rcard.yaes.http.core.{BodyCodec, DecodingError, Headers}
 import in.rcard.yaes.http.server.params.path.NoParams
 import in.rcard.yaes.http.server.params.query.NoQueryParams
 import in.rcard.yaes.http.server.routing.Route
@@ -85,12 +86,23 @@ object RegisterCopyRoute {
                 detail = "Copy already registered.",
                 errors = Seq(
                   ErrorDTO(
-                    detail = s"The copy with id '${copyId}' is already registered."
+                    detail = s"The copy with id '$copyId' is already registered."
                   )
                 )
               )
             )
           )
+        case Error.UnexpectedError(_) => Response.internalServerError(
+            ProblemDetailsDTO(
+              title = "Unexpected error",
+              detail = "An unexpected error occurred.",
+              errors = Seq(
+                ErrorDTO(
+                  detail = "Unexpected error"
+                )
+              )
+            )
+        )
       }
     }
   }

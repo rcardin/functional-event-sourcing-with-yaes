@@ -29,6 +29,12 @@ private val REGISTER_COPY_EMPTY_TITLE_REQUEST_JSON = """{
   "author": "Isaac Asimov"
 }"""
 
+private val REGISTER_COPY_UNEXPECTED_ERROR_REQUEST_JSON = s"""{
+  "isbn": "$UNEXPECTED_ISBN_VALUE",
+  "title": "$FOUNDATION_TITLE_VALUE",
+  "author": "$FOUNDATION_AUTHOR_VALUE"
+}"""
+
 private val REGISTER_COPY_PARSING_ERROR_RESPONSE_JSON =
   """{"title":"Validation error","detail":"The request body is not valid. Please check the errors for more details.","errors":[{"detail":"DecodingFailure at .isbn: Missing required field"}]}"""
 
@@ -38,16 +44,21 @@ private val REGISTER_COPY_EMPTY_TITLE_VALIDATION_ERROR_RESPONSE_JSON =
 private val REGISTER_ALREADY_REGISTERED_COPY_VALIDATION_ERROR_RESPONSE_JSON =
   """{"title":"Conflict","detail":"Copy already registered.","errors":[{"detail":"The copy with id 'copy1' is already registered."}]}"""
 
+private val REGISTER_COPY_UNEXPECTED_ERROR_RESPONSE_JSON =
+  """{"title":"Unexpected error","detail":"An unexpected error occurred.","errors":[{"detail":"Unexpected error"}]}"""
+
 class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
 
   private val mockedRegisterCopyUseCase = new RegisterCopyUseCase {
     override def registerCopy(copyToRegister: RegisterCopyUseCase.CopyToRegister): CopyId raises
-      Error =
-      if (copyToRegister.isbn == FOUNDATION_ISBN) {
-        COPY_ID
-      } else {
+      Error = copyToRegister.isbn match {
+      case ALREADY_REGISTERED_ISBN =>
         Raise.raise(AlreadyRegistered(COPY_ID))
-      }
+      case UNEXPECTED_ISBN =>
+        Raise.raise(Error.UnexpectedError("Unexpected error"))
+      case FOUNDATION_ISBN =>
+        COPY_ID
+    }
   }
 
   private val underTest = YaesRoutes(RegisterCopyRoute(mockedRegisterCopyUseCase).registerCopyRoute)
@@ -92,5 +103,16 @@ class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
 
     actualResponse.status shouldBe 409
     actualResponse.body shouldBe REGISTER_ALREADY_REGISTERED_COPY_VALIDATION_ERROR_RESPONSE_JSON
+  }
+
+  it should "return 500 if the use case raises an unexpected error" in {
+
+    val request =
+      Request(POST, "/copies", Map.empty, REGISTER_COPY_UNEXPECTED_ERROR_REQUEST_JSON, Map.empty)
+
+    val actualResponse = underTest.handle(request)
+
+    actualResponse.status shouldBe 500
+    actualResponse.body shouldBe REGISTER_COPY_UNEXPECTED_ERROR_RESPONSE_JSON
   }
 }
