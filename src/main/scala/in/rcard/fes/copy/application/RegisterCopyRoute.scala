@@ -8,16 +8,16 @@ import in.rcard.fes.copy.domain.Domain.{Author, ISBN, Title}
 import in.rcard.fes.copy.domain.Error
 import in.rcard.fes.copy.domain.Error.UnexpectedError
 import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase
-import in.rcard.fes.utils.reader
 import in.rcard.yaes.Reader.read
 import in.rcard.yaes.http.circe.given
 import in.rcard.yaes.http.core.DecodingError.{ParseError, ValidationError}
-import in.rcard.yaes.http.core.{BodyCodec, DecodingError, Headers}
+import in.rcard.yaes.http.core.{BodyEncoder, DecodingError, Headers}
 import in.rcard.yaes.http.server.params.path.NoParams
 import in.rcard.yaes.http.server.params.query.NoQueryParams
 import in.rcard.yaes.http.server.routing.Route
 import in.rcard.yaes.http.server.{POST, Response, p}
 import in.rcard.yaes.{Raise, Reader, reads}
+import in.rcard.yaes.Reader.reader
 import io.circe.{Decoder, Encoder}
 import io.github.iltotore.iron.*
 import io.github.iltotore.iron.circe.given
@@ -32,14 +32,13 @@ object RegisterCopyRoute {
       isbn: String :| ISBN13,
       title: String :| Not[Blank],
       author: String :| Not[Blank]
-  ) derives Encoder.AsObject,
-        Decoder
+  ) derives Decoder
 
   def apply(registerCopyUseCase: RegisterCopyUseCase): RegisterCopyRoute = new RegisterCopyRoute {
 
     override val registerCopyRoute: Route[NoParams, NoQueryParams] = POST(p"/copies") { req =>
       Raise.recover {
-        val dto = req.as[RegisterCopyDTO]
+        val dto       = req.as[RegisterCopyDTO]
         val newCopyId = registerCopyUseCase.registerCopy(
           RegisterCopyUseCase.CopyToRegister(
             isbn = ISBN(dto.isbn),
@@ -76,23 +75,21 @@ object RegisterCopyRoute {
             )
           )
         case Error.AlreadyRegistered(copyId) =>
-          Response(
+          Response.withStatus(
             status = 409,
-            headers = Map(Headers.ContentType -> "application/json"),
-            // FIXME Creating a body for a generic response is a bit cumbersome
-            body = summon[BodyCodec[ProblemDetailsDTO]].encode(
-              ProblemDetailsDTO(
-                title = "Conflict",
-                detail = "Copy already registered.",
-                errors = Seq(
-                  ErrorDTO(
-                    detail = s"The copy with id '$copyId' is already registered."
-                  )
+            value = ProblemDetailsDTO(
+              title = "Conflict",
+              detail = "Copy already registered.",
+              errors = Seq(
+                ErrorDTO(
+                  detail = s"The copy with id '$copyId' is already registered."
                 )
               )
-            )
+            ),
+            extraHeaders = Map(Headers.ContentType -> "application/json")
           )
-        case Error.UnexpectedError(_) => Response.internalServerError(
+        case Error.UnexpectedError(_) =>
+          Response.internalServerError(
             ProblemDetailsDTO(
               title = "Unexpected error",
               detail = "An unexpected error occurred.",
@@ -102,10 +99,12 @@ object RegisterCopyRoute {
                 )
               )
             )
-        )
+          )
       }
     }
   }
 
-  given Reader[RegisterCopyRoute] reads RegisterCopyUseCase = reader(RegisterCopyRoute(read[RegisterCopyUseCase]))
+  given live: Reader[RegisterCopyRoute] reads RegisterCopyUseCase = reader(
+    RegisterCopyRoute(read[RegisterCopyUseCase])
+  )
 }
