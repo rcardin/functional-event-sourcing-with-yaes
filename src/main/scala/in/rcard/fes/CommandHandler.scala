@@ -1,7 +1,7 @@
 package in.rcard.fes
 
-import in.rcard.fes.utils.reader
 import in.rcard.yaes.{Reader, raises}
+import in.rcard.yaes.Reader.reader
 
 trait CommandHandler[Id, Command, Error, Event] {
   def handle(id: Id, cmd: Command): Seq[Event] raises Error

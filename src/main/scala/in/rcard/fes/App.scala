@@ -3,7 +3,6 @@ package in.rcard.fes
 import in.rcard.fes.AppConfig.IsbnClientConfig
 import in.rcard.fes.copy.application.RegisterCopyRoute
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort
-import in.rcard.fes.utils.reader
 import in.rcard.yaes.Reader.read
 import in.rcard.yaes.http.client.{Uri, YaesClient}
 import in.rcard.yaes.http.server.{ServerDef, YaesServer}
@@ -33,20 +32,10 @@ class App extends YaesApp {
     }
   }
 
-//  private def server(appConfig: AppConfig)(using resource: Resource): ServerDef = {
-////      Reader.run(client(FindCopyByIsbnPort.IsbnClientConfig(
-////        appConfig.isbnClient.host,
-////        appConfig.isbnClient.apiKey
-////      )) {
-////        YaesServer.route(
-////          read[RegisterCopyRoute].registerCopyRoute
-////        )
-////      }
-//  }
-
-  private def client(isbnClientConfig: IsbnClientConfig)(using Resource): YaesClient = {
-    // FIXME Add the configuration
-    YaesClient.make()
+  private def server()(using Random): ServerDef = {
+    YaesServer.route(
+      read[RegisterCopyRoute].registerCopyRoute
+    )
   }
 
 }

@@ -6,7 +6,7 @@ import in.rcard.yaes.Reader
 import in.rcard.yaes.http.server.params.path.NoParams
 import in.rcard.yaes.http.server.params.query.NoQueryParams
 import in.rcard.yaes.http.server.routing.Route
-import io.circe.{Decoder, Encoder}
+import io.circe.Encoder
 
 object Routes {
 
@@ -15,12 +15,10 @@ object Routes {
       title: String,
       detail: String,
       errors: Seq[ErrorDTO]
-  ) derives Encoder.AsObject,
-        Decoder
+  ) derives Encoder.AsObject
   object ProblemDetailsDTO {
     case class ErrorDTO(
         detail: String
-    ) derives Encoder.AsObject,
-          Decoder
+    ) derives Encoder.AsObject
   }
 }
