@@ -39,7 +39,7 @@ object RegisterCopyRoute {
 
     override val registerCopyRoute: Route[NoParams, NoQueryParams] = POST(p"/copies") { req =>
       Raise.recover {
-        val dto = req.as[RegisterCopyDTO]
+        val dto       = req.as[RegisterCopyDTO]
         val newCopyId = registerCopyUseCase.registerCopy(
           RegisterCopyUseCase.CopyToRegister(
             isbn = ISBN(dto.isbn),
@@ -92,7 +92,8 @@ object RegisterCopyRoute {
               )
             )
           )
-        case Error.UnexpectedError(_) => Response.internalServerError(
+        case Error.UnexpectedError(_) =>
+          Response.internalServerError(
             ProblemDetailsDTO(
               title = "Unexpected error",
               detail = "An unexpected error occurred.",
@@ -102,10 +103,12 @@ object RegisterCopyRoute {
                 )
               )
             )
-        )
+          )
       }
     }
   }
 
-  given Reader[RegisterCopyRoute] reads RegisterCopyUseCase = reader(RegisterCopyRoute(read[RegisterCopyUseCase]))
+  given live: Reader[RegisterCopyRoute] reads RegisterCopyUseCase = reader(
+    RegisterCopyRoute(read[RegisterCopyUseCase])
+  )
 }
