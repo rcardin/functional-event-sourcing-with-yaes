@@ -8,6 +8,7 @@ import in.rcard.fes.copy.domain.{Command, Error, Event}
 import in.rcard.yaes.Reader.reader
 import in.rcard.yaes.Reader.read
 import in.rcard.yaes.{Raise, Reader, raises, reads}
+import in.rcard.yaes.Random
 
 trait RegisterCopyUseCase {
   def registerCopy(copyToRegister: CopyToRegister): CopyId raises Error
@@ -50,7 +51,9 @@ trait CopyIdGenerator {
 }
 object CopyIdGenerator {
 
-  def apply(): CopyIdGenerator = () => CopyId("1")
+  def apply()(using Random): CopyIdGenerator = new CopyIdGenerator {
+    override def generate(): CopyId = CopyId(Random.nextUuid)
+  }
 
-  given Reader[CopyIdGenerator] = reader(CopyIdGenerator())
+  given live(using Random): Reader[CopyIdGenerator] = reader(CopyIdGenerator())
 }

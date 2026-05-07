@@ -16,7 +16,7 @@ class App extends YaesApp {
     }
   }
 
-  private def server(): ServerDef = {
+  private def server()(using Random): ServerDef = {
     YaesServer.route(
       read[RegisterCopyRoute].registerCopyRoute
     )
