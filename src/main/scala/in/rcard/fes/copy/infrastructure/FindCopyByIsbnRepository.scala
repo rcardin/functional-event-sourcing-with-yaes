@@ -1,5 +1,5 @@
 package in.rcard.fes.copy.infrastructure
 
-class FindCopyByIsbnRepository {
-
-}
+//class FindCopyByIsbnRepository extends FindCopuByIsbnPort {
+//
+//}
