@@ -119,7 +119,7 @@ object RegisterCopyRoute {
         // FIXME The Created response should return the location of the created resource.
         //       Moreover we should have a ctor with the body and another one without it.
         Response.created[String]("Ok")
-      } { error =>
+      } { (error: Error | List[DecodingError]) =>
         error match {
           case decodingErrors: List[DecodingError] => handlingDecodingErrors(decodingErrors)
           case error: Error                        => handlingDomainErrors(error)
