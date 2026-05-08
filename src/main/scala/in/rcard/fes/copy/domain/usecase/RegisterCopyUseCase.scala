@@ -19,7 +19,8 @@ object RegisterCopyUseCase {
 
   def apply(
       copyIdGenerator: CopyIdGenerator,
-      commandHandler: CommandHandler[CopyId, Command, Error, Event]
+      commandHandler: CommandHandler[CopyId, Command, Error, Event],
+      findCopyByIsbnPort: FindCopyByIsbnPort
   ): RegisterCopyUseCase = new RegisterCopyUseCase {
     override def registerCopy(copyToRegister: CopyToRegister): CopyId raises Error = {
       val newCopyId = copyIdGenerator.generate()
@@ -38,11 +39,12 @@ object RegisterCopyUseCase {
   }
 
   given live: Reader[RegisterCopyUseCase] reads CopyIdGenerator reads
-    CommandHandler[CopyId, Command, Error, Event] =
+    CommandHandler[CopyId, Command, Error, Event] reads FindCopyByIsbnPort =
     reader(
       RegisterCopyUseCase(
         read[CopyIdGenerator],
-        read[CommandHandler[CopyId, Command, Error, Event]]
+        read[CommandHandler[CopyId, Command, Error, Event]],
+        read[FindCopyByIsbnPort]
       )
     )
 }

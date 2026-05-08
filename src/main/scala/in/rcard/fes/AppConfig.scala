@@ -5,6 +5,9 @@ import io.github.iltotore.iron.*
 import io.github.iltotore.iron.constraint.all.*
 import io.github.iltotore.iron.pureconfig.given
 import _root_.pureconfig.*
+import in.rcard.yaes.http.client.Uri
+import in.rcard.yaes.Raise
+import _root_.pureconfig.error.CannotConvert
 
 case class AppConfig(
     port: Int,
@@ -12,5 +15,15 @@ case class AppConfig(
 ) derives ConfigReader
 object AppConfig {
   // FIXME Check with a proper test
-  case class IsbnClientConfig(host: String :| ValidURL, apiKey: String) derives ConfigReader
+  case class IsbnClientConfig(host: Uri, apiKey: String) derives ConfigReader
+
+  given uriReader: ConfigReader[Uri] = ConfigReader.fromCursor[Uri] { cur =>
+    cur.asString.flatMap { str =>
+      Raise.fold(Uri(str)) { error =>
+        cur.failed(CannotConvert(str, "Uri", s"Invalid URI"))
+      } { uri =>
+        Right(uri)
+      }
+    }
+  }
 }

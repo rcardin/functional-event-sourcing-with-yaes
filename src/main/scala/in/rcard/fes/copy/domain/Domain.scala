@@ -22,6 +22,10 @@ object Domain {
   opaque type ISBN = String
   object ISBN {
     def apply(isbn: String): ISBN = isbn
+
+    extension (isbn: ISBN) {
+      def value: String = isbn
+    }
   }
 
   opaque type Title = String

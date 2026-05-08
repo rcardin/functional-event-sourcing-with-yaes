@@ -3,12 +3,27 @@ package in.rcard.fes
 import in.rcard.fes.AppConfig.IsbnClientConfig
 import in.rcard.fes.copy.application.RegisterCopyRoute
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort
+import in.rcard.fes.copy.infrastructure.FindCopyByIsbnRepository.live
 import in.rcard.yaes.Reader.read
 import in.rcard.yaes.http.client.{Uri, YaesClient}
 import in.rcard.yaes.http.server.{ServerDef, YaesServer}
 import in.rcard.yaes.slf4j.Slf4jLog
 import in.rcard.yaes.Raise.*
-import in.rcard.yaes.{Clock, Input, Log, Output, Raise, Random, Reader, Resource, Shutdown, Sync, System, YaesApp}
+import in.rcard.yaes.Reader.reader
+import in.rcard.yaes.{
+  Clock,
+  Input,
+  Log,
+  Output,
+  Raise,
+  Random,
+  Reader,
+  Resource,
+  Shutdown,
+  Sync,
+  System,
+  YaesApp
+}
 import pureconfig.*
 
 class App extends YaesApp {
@@ -18,21 +33,25 @@ class App extends YaesApp {
 
       val logger = Log.getLogger("YaesApp")
 
-//      Raise.fold(ConfigSource.default.load[AppConfig].value) { error =>
-////        logger.error(s"Failed to load configuration: ${error.prettyPrint()}")
-//      } { appConfig =>
-//
-//        Shutdown.run {
-//          Resource.run {
-//            server(appConfig)
-//              .run(port = appConfig)
-//          }
-//        }
-//      }
+      Raise.fold(ConfigSource.default.load[AppConfig].value) { error =>
+        logger.error(s"Failed to load configuration: ${error.prettyPrint()}")
+      } { appConfig =>
+        Shutdown.run {
+          Resource.run {
+            server(appConfig)
+              .run(port = appConfig.port)
+          }
+        }
+      }
     }
   }
 
-  private def server()(using Random): ServerDef = {
+  private def server(appConfig: AppConfig)(using Random, Resource, Sync): ServerDef = {
+
+    // FIXME Don't know if I like it
+    given client: Reader[YaesClient]                 = reader(YaesClient.make())
+    given isbnClientConfig: Reader[IsbnClientConfig] = reader(appConfig.isbnClient)
+
     YaesServer.route(
       read[RegisterCopyRoute].registerCopyRoute
     )
