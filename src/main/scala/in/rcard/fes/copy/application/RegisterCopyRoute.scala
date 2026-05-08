@@ -4,21 +4,31 @@ import in.rcard.fes.copy.application.RegisterCopyRoute.RegisterCopyDTO
 import in.rcard.fes.copy.application.Routes.ProblemDetailsDTO
 import in.rcard.fes.copy.application.Routes.ProblemDetailsDTO.ErrorDTO
 import in.rcard.fes.copy.application.constraint.ISBN13
-import in.rcard.fes.copy.domain.Domain.{Author, ISBN, Title}
+import in.rcard.fes.copy.domain.Domain.Author
+import in.rcard.fes.copy.domain.Domain.ISBN
+import in.rcard.fes.copy.domain.Domain.Title
 import in.rcard.fes.copy.domain.Error
 import in.rcard.fes.copy.domain.Error.UnexpectedError
 import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase
+import in.rcard.yaes.Raise
+import in.rcard.yaes.Reader
 import in.rcard.yaes.Reader.read
+import in.rcard.yaes.Reader.reader
 import in.rcard.yaes.http.circe.given
-import in.rcard.yaes.http.core.DecodingError.{ParseError, ValidationError}
-import in.rcard.yaes.http.core.{BodyEncoder, DecodingError, Headers}
+import in.rcard.yaes.http.core.BodyEncoder
+import in.rcard.yaes.http.core.DecodingError
+import in.rcard.yaes.http.core.DecodingError.ParseError
+import in.rcard.yaes.http.core.DecodingError.ValidationError
+import in.rcard.yaes.http.core.Headers
+import in.rcard.yaes.http.server.POST
+import in.rcard.yaes.http.server.Response
+import in.rcard.yaes.http.server.p
 import in.rcard.yaes.http.server.params.path.NoParams
 import in.rcard.yaes.http.server.params.query.NoQueryParams
 import in.rcard.yaes.http.server.routing.Route
-import in.rcard.yaes.http.server.{POST, Response, p}
-import in.rcard.yaes.{Raise, Reader, reads}
-import in.rcard.yaes.Reader.reader
-import io.circe.{Decoder, Encoder}
+import in.rcard.yaes.reads
+import io.circe.Decoder
+import io.circe.Encoder
 import io.github.iltotore.iron.*
 import io.github.iltotore.iron.circe.given
 import io.github.iltotore.iron.constraint.all.*
@@ -36,44 +46,8 @@ object RegisterCopyRoute {
 
   def apply(registerCopyUseCase: RegisterCopyUseCase): RegisterCopyRoute = new RegisterCopyRoute {
 
-    override val registerCopyRoute: Route[NoParams, NoQueryParams] = POST(p"/copies") { req =>
-      Raise.recover {
-        val dto       = req.as[RegisterCopyDTO]
-        val newCopyId = registerCopyUseCase.registerCopy(
-          RegisterCopyUseCase.CopyToRegister(
-            isbn = ISBN(dto.isbn),
-            title = Title(dto.title),
-            author = Author(dto.author)
-          )
-        )
-        // FIXME The Created response should return the location of the created resource.
-        //       Moreover we should have a ctor with the body and another one without it.
-        Response.created[String]("Ok")
-      } {
-        case error: ParseError =>
-          Response.badRequest[ProblemDetailsDTO](
-            ProblemDetailsDTO(
-              title = "Invalid request body",
-              detail = "The request body could not be parsed. Please check the syntax.",
-              errors = Seq(
-                ErrorDTO(
-                  detail = error.message
-                )
-              )
-            )
-          )
-        case error: ValidationError =>
-          Response.badRequest[ProblemDetailsDTO](
-            ProblemDetailsDTO(
-              title = "Validation error",
-              detail = "The request body is not valid. Please check the errors for more details.",
-              errors = Seq(
-                ErrorDTO(
-                  detail = error.message
-                )
-              )
-            )
-          )
+    private def handlingDomainErrors(error: Error): Response = {
+      error match
         case Error.AlreadyRegistered(copyId) =>
           Response.withStatus(
             status = 409,
@@ -100,6 +74,56 @@ object RegisterCopyRoute {
               )
             )
           )
+    }
+    private def handlingDecodingErrors(errors: List[DecodingError]): Response = errors match {
+      case Nil        => throw new IllegalArgumentException("This case can't happen")
+      case pe :: tail =>
+        pe match {
+          case ParseError(message, cause) =>
+            Response.badRequest[ProblemDetailsDTO](
+              ProblemDetailsDTO(
+                title = "Invalid request body",
+                detail = "The request body could not be parsed. Please check the syntax.",
+                errors = Seq(
+                  ErrorDTO(
+                    detail = message
+                  )
+                )
+              )
+            )
+          case _ =>
+            Response.badRequest[ProblemDetailsDTO](
+              ProblemDetailsDTO(
+                title = "Validation error",
+                detail = "The request body is not valid. Please check the errors for more details.",
+                errors = Seq(
+                  ErrorDTO(
+                    detail = errors.map(_.message).mkString(", ")
+                  )
+                )
+              )
+            )
+        }
+    }
+
+    override val registerCopyRoute: Route[NoParams, NoQueryParams] = POST(p"/copies") { req =>
+      Raise.recover {
+        val dto       = req.as[RegisterCopyDTO]
+        val newCopyId = registerCopyUseCase.registerCopy(
+          RegisterCopyUseCase.CopyToRegister(
+            isbn = ISBN(dto.isbn),
+            title = Title(dto.title),
+            author = Author(dto.author)
+          )
+        )
+        // FIXME The Created response should return the location of the created resource.
+        //       Moreover we should have a ctor with the body and another one without it.
+        Response.created[String]("Ok")
+      } { error =>
+        error match {
+          case decodingErrors: List[DecodingError] => handlingDecodingErrors(decodingErrors)
+          case error: Error                        => handlingDomainErrors(error)
+        }
       }
     }
   }

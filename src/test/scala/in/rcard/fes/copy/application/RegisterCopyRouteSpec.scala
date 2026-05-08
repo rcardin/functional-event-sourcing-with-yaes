@@ -36,10 +36,10 @@ private val REGISTER_COPY_UNEXPECTED_ERROR_REQUEST_JSON = s"""{
 }"""
 
 private val REGISTER_COPY_PARSING_ERROR_RESPONSE_JSON =
-  """{"title":"Validation error","detail":"The request body is not valid. Please check the errors for more details.","errors":[{"detail":"DecodingFailure at .isbn: Missing required field"}]}"""
+  """{"title":"Invalid request body","detail":"The request body could not be parsed. Please check the syntax.","errors":[{"detail":"expected null got 'not_va...' (line 1, column 1)"}]}"""
 
 private val REGISTER_COPY_EMPTY_TITLE_VALIDATION_ERROR_RESPONSE_JSON =
-  """{"title":"Validation error","detail":"The request body is not valid. Please check the errors for more details.","errors":[{"detail":"DecodingFailure at .isbn: Should be a valid ISBN-13"}]}"""
+  """{"title":"Validation error","detail":"The request body is not valid. Please check the errors for more details.","errors":[{"detail":"DecodingFailure at .isbn: Should be a valid ISBN-13, DecodingFailure at .title: !(Should only contain whitespaces)"}]}"""
 
 private val REGISTER_ALREADY_REGISTERED_COPY_VALIDATION_ERROR_RESPONSE_JSON =
   """{"title":"Conflict","detail":"Copy already registered.","errors":[{"detail":"The copy with id 'copy1' is already registered."}]}"""
@@ -75,9 +75,11 @@ class RegisterCopyRouteSpec extends AnyFlatSpec with Matchers {
 
   it should "return 400 if the DTO is not valid" in {
 
-    val request = Request(POST, "/copies", Map.empty, "{}", Map.empty)
+    val request = Request(POST, "/copies", Map.empty, "not_valid", Map.empty)
 
     val actualResponse = underTest.handle(request)
+
+    println(actualResponse.body)
 
     actualResponse.status shouldBe 400
     actualResponse.body shouldBe REGISTER_COPY_PARSING_ERROR_RESPONSE_JSON
