@@ -8,6 +8,7 @@ import _root_.pureconfig.*
 import in.rcard.yaes.http.client.Uri
 import in.rcard.yaes.Raise
 import _root_.pureconfig.error.CannotConvert
+import cats.data.Validated.Valid
 
 case class AppConfig(
     port: Int,
@@ -15,7 +16,7 @@ case class AppConfig(
 ) derives ConfigReader
 object AppConfig {
   // FIXME Check with a proper test
-  case class IsbnClientConfig(host: Uri, apiKey: String) derives ConfigReader
+  case class IsbnClientConfig(host: Uri, apiKey: String :| Not[Empty]) derives ConfigReader
 
   given uriReader: ConfigReader[Uri] = ConfigReader.fromCursor[Uri] { cur =>
     cur.asString.flatMap { str =>

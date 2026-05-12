@@ -10,14 +10,18 @@ import in.rcard.yaes.Reader.read
 import in.rcard.yaes.Reader.reader
 import in.rcard.yaes.Sync
 import in.rcard.yaes.http.client.HttpRequest
+import in.rcard.yaes.http.client.HttpResponse
+import in.rcard.yaes.http.client.as
 import in.rcard.yaes.http.client.Uri
 import in.rcard.yaes.http.client.YaesClient
 import in.rcard.yaes.raises
 import in.rcard.yaes.reads
+import in.rcard.yaes.http.client.UriParam.given
+import in.rcard.fes.util.UriOps.*
+import in.rcard.yaes.http.core.Headers
 
 object FindCopyByIsbnRepository {
 
-  // FIXME: Probably it's better to move the check of URI validity out of here
   def apply(
       httpClient: YaesClient,
       clientConfig: IsbnClientConfig
@@ -65,11 +69,21 @@ object FindCopyByIsbnRepository {
       override def find(isbn: ISBN): CopyToRegister raises FindCopyByIsbnPort.Error = {
 
         val req = HttpRequest
-          .get(clientConfig.host)
-          .header("Authorization", s"Bearer ${clientConfig.apiKey}")
-          .queryParam("isbn", isbn.value)
-        // httpClient.send(req)
-        null
+          .get(clientConfig.host / "books" / isbn.value)
+          .header(Headers.Authorization, clientConfig.apiKey)
+          .queryParam("with_prices", "false")
+
+        Raise.recover {
+          val res = httpClient.send(req)
+          res.status match {
+            case 200 =>
+              val bookDto = res.as[BookDto]
+
+          }
+
+        } { connError =>
+          Raise.raise(FindCopyByIsbnPort.Error.UnexpectedError(s"Connection error"))
+        }
       }
     }
   }
