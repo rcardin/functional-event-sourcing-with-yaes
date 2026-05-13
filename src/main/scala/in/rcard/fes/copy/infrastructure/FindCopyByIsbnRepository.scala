@@ -19,6 +19,11 @@ import in.rcard.yaes.reads
 import in.rcard.yaes.http.client.UriParam.given
 import in.rcard.fes.util.UriOps.*
 import in.rcard.yaes.http.core.Headers
+import io.circe.Decoder
+import in.rcard.yaes.http.circe.given
+import in.rcard.fes.copy.domain.Domain.{Author, ISBN, Title}
+import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort.Error
+import in.rcard.yaes.http.client.ConnectionError
 
 object FindCopyByIsbnRepository {
 
@@ -27,7 +32,7 @@ object FindCopyByIsbnRepository {
       clientConfig: IsbnClientConfig
   )(using Sync): FindCopyByIsbnPort = {
 
-    case class MerchantLogoOffsetDto(x: String, y: String)
+    case class MerchantLogoOffsetDto(x: String, y: String) derives Decoder
 
     case class PriceDto(
         condition: String,
@@ -38,9 +43,9 @@ object FindCopyByIsbnRepository {
         price: String,
         total: String,
         link: String
-    )
+    ) derives Decoder
 
-    case class OtherIsbnDto(isbn: String, binding: String)
+    case class OtherIsbnDto(isbn: String, binding: String) derives Decoder
 
     case class BookDto(
         title: String,
@@ -63,10 +68,10 @@ object FindCopyByIsbnRepository {
         subjects: List[String],
         prices: List[PriceDto],
         otherIsbns: List[OtherIsbnDto]
-    )
+    ) derives Decoder
 
     new FindCopyByIsbnPort {
-      override def find(isbn: ISBN): CopyToRegister raises FindCopyByIsbnPort.Error = {
+      override def find(isbn: ISBN): CopyToRegister raises Error = {
 
         val req = HttpRequest
           .get(clientConfig.host / "books" / isbn.value)
@@ -78,10 +83,14 @@ object FindCopyByIsbnRepository {
           res.status match {
             case 200 =>
               val bookDto = res.as[BookDto]
-
+              CopyToRegister(
+                isbn = isbn,
+                title = Title(bookDto.title),
+                author = Author(bookDto.authors.headOption.getOrElse(""))
+              )
           }
 
-        } { connError =>
+        } { case ce: ConnectionError =>
           Raise.raise(FindCopyByIsbnPort.Error.UnexpectedError(s"Connection error"))
         }
       }

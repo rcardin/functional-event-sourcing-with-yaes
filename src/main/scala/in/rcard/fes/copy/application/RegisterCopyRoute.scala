@@ -18,7 +18,7 @@ import in.rcard.yaes.http.circe.given
 import in.rcard.yaes.http.core.BodyEncoder
 import in.rcard.yaes.http.core.DecodingError
 import in.rcard.yaes.http.core.DecodingError.ParseError
-import in.rcard.yaes.http.core.DecodingError.ValidationError
+import in.rcard.yaes.http.core.DecodingError.ValidationErrors
 import in.rcard.yaes.http.core.Headers
 import in.rcard.yaes.http.server.POST
 import in.rcard.yaes.http.server.Response
@@ -75,35 +75,32 @@ object RegisterCopyRoute {
             )
           )
     }
-    private def handlingDecodingErrors(errors: List[DecodingError]): Response = errors match {
-      case Nil        => throw new IllegalArgumentException("This case can't happen")
-      case pe :: tail =>
-        pe match {
-          case ParseError(message, cause) =>
-            Response.badRequest[ProblemDetailsDTO](
-              ProblemDetailsDTO(
-                title = "Invalid request body",
-                detail = "The request body could not be parsed. Please check the syntax.",
-                errors = Seq(
-                  ErrorDTO(
-                    detail = message
-                  )
-                )
+    private def handlingDecodingErrors(error: DecodingError): Response = error match {
+
+      case ParseError(message, cause) =>
+        Response.badRequest[ProblemDetailsDTO](
+          ProblemDetailsDTO(
+            title = "Invalid request body",
+            detail = "The request body could not be parsed. Please check the syntax.",
+            errors = Seq(
+              ErrorDTO(
+                detail = message
               )
             )
-          case _ =>
-            Response.badRequest[ProblemDetailsDTO](
-              ProblemDetailsDTO(
-                title = "Validation error",
-                detail = "The request body is not valid. Please check the errors for more details.",
-                errors = Seq(
-                  ErrorDTO(
-                    detail = errors.map(_.message).mkString(", ")
-                  )
-                )
+          )
+        )
+      case ValidationErrors(validationErrors) =>
+        Response.badRequest[ProblemDetailsDTO](
+          ProblemDetailsDTO(
+            title = "Validation error",
+            detail = "The request body is not valid. Please check the errors for more details.",
+            errors = validationErrors.map { error =>
+              ErrorDTO(
+                detail = error
               )
-            )
-        }
+            }.toList
+          )
+        )
     }
 
     override val registerCopyRoute: Route[NoParams, NoQueryParams] = POST(p"/copies") { req =>
@@ -119,10 +116,10 @@ object RegisterCopyRoute {
         // FIXME The Created response should return the location of the created resource.
         //       Moreover we should have a ctor with the body and another one without it.
         Response.created[String]("Ok")
-      } { (error: Error | List[DecodingError]) =>
+      } { (error: Error | DecodingError) =>
         error match {
-          case decodingErrors: List[DecodingError] => handlingDecodingErrors(decodingErrors)
-          case error: Error                        => handlingDomainErrors(error)
+          case decodingError: DecodingError => handlingDecodingErrors(decodingError)
+          case error: Error                 => handlingDomainErrors(error)
         }
       }
     }

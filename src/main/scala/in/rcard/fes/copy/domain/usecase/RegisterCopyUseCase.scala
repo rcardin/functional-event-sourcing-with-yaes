@@ -15,6 +15,7 @@ trait RegisterCopyUseCase {
   def registerCopy(copyToRegister: CopyToRegister): CopyId raises Error
 }
 object RegisterCopyUseCase {
+  // FIXME A copy should have many authors
   case class CopyToRegister(isbn: ISBN, title: Title, author: Author)
 
   def apply(
