@@ -46,7 +46,7 @@ class App extends YaesApp {
     }
   }
 
-  private def server(appConfig: AppConfig)(using Random, Resource, Sync): ServerDef = {
+  private def server(appConfig: AppConfig)(using Log, Random, Resource, Sync): ServerDef = {
 
     // FIXME Don't know if I like it
     given client: Reader[YaesClient]                 = reader(YaesClient.make())

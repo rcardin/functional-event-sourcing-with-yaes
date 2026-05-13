@@ -8,6 +8,7 @@ import in.rcard.fes.utils.RaiseSpec
 import in.rcard.yaes.{Raise, raises}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort
 
 class RegisterCopyUseCaseSpec extends AnyFlatSpec with RaiseSpec with Matchers {
   val mockCopyIdGenerator: CopyIdGenerator                              = () => COPY_ID
@@ -23,7 +24,11 @@ class RegisterCopyUseCaseSpec extends AnyFlatSpec with RaiseSpec with Matchers {
       }
     }
 
-  private val underTest = RegisterCopyUseCase(mockCopyIdGenerator, mockCommandHandler)
+  // FIXME To implement
+  val mockFindCopyByIsbnPort: FindCopyByIsbnPort = ???
+
+  private val underTest =
+    RegisterCopyUseCase(mockCopyIdGenerator, mockCommandHandler, mockFindCopyByIsbnPort)
 
   "RegisterCopyUseCase.registerCopy" should "register a copy successfully if it is not already registered" in {
     val copyToRegister = RegisterCopyUseCase.CopyToRegister(
@@ -48,7 +53,7 @@ class RegisterCopyUseCaseSpec extends AnyFlatSpec with RaiseSpec with Matchers {
 
     actualResult shouldBe Error.AlreadyRegistered(COPY_ID)
   }
-  
+
   it should "raise an error if the command handler returns an unexpected event" in {
     val copyToRegister = RegisterCopyUseCase.CopyToRegister(
       UNEXPECTED_ISBN,
