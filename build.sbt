@@ -26,6 +26,7 @@ lazy val root = (project in file("."))
     version      := "0.1.0-SNAPSHOT",
     scalaVersion := scala3Version,
     scalacOptions += "-target:25",
+    scalacOptions += "-Xfatal-warnings",
     javacOptions ++= Seq("-source", "25", "-target", "25"),
     libraryDependencies ++= Seq(
       dependencies.yaesCore,
