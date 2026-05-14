@@ -1,10 +1,9 @@
 package in.rcard.fes.copy.domain.usecase
 
 import in.rcard.fes.CommandHandler
-import in.rcard.fes.copy.domain
-import in.rcard.fes.copy.domain.Domain.{Author, CopyId, ISBN, Title}
+import in.rcard.fes.copy.domain.Domain.{CopyId, ISBN}
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort
-import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase.CopyToRegister
+import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort.CopyToRegister
 import in.rcard.fes.copy.domain.{Command, Error, Event}
 import in.rcard.yaes.Reader.reader
 import in.rcard.yaes.Reader.read
@@ -12,11 +11,9 @@ import in.rcard.yaes.{Raise, Reader, raises, reads}
 import in.rcard.yaes.Random
 
 trait RegisterCopyUseCase {
-  def registerCopy(copyToRegister: CopyToRegister): CopyId raises Error
+  def registerCopy(isbn: ISBN): CopyId raises Error
 }
 object RegisterCopyUseCase {
-  // FIXME A copy should have many authors
-  case class CopyToRegister(isbn: ISBN, title: Title, author: Author)
 
   def apply(
       copyIdGenerator: CopyIdGenerator,
@@ -35,14 +32,14 @@ object RegisterCopyUseCase {
       }
     }
 
-    override def registerCopy(copyToRegister: CopyToRegister): CopyId raises Error = {
-      val catalogCopy = findCopyFromCatalog(copyToRegister.isbn)
+    override def registerCopy(isbn: ISBN): CopyId raises Error = {
+      val catalogCopy = findCopyFromCatalog(isbn)
       val newCopyId   = copyIdGenerator.generate()
       val cmd         = Command.Register(
         newCopyId,
         catalogCopy.isbn,
         catalogCopy.title,
-        catalogCopy.author
+        catalogCopy.authors
       )
       val events = commandHandler.handle(newCopyId, cmd)
       events match {

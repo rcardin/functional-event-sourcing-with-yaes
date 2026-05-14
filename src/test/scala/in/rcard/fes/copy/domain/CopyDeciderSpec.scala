@@ -19,7 +19,7 @@ class CopyDeciderSpec extends AnyFlatSpec with RaiseSpec with Matchers {
 
   "CopyDecider.decide" should "register a copy if it is not already registered" in {
     val command =
-      Command.Register(COPY_ID, COPY_ISBN, TITLE, AUTHOR)
+      Command.Register(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR))
     val state = CopyState.empty
 
     val actualResult = failOnRaise { underTest.decide(command, state) }
@@ -27,7 +27,7 @@ class CopyDeciderSpec extends AnyFlatSpec with RaiseSpec with Matchers {
       COPY_ID,
       COPY_ISBN,
       TITLE,
-      AUTHOR
+      Seq(AUTHOR)
     )
 
   }
@@ -35,12 +35,12 @@ class CopyDeciderSpec extends AnyFlatSpec with RaiseSpec with Matchers {
   it should "not register a copy if it is already registered" in {
     val underTest = new CopyDecider
     val command   =
-      Command.Register(COPY_ID, COPY_ISBN, TITLE, AUTHOR)
+      Command.Register(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR))
     val state = CopyState.empty :+ Event.Registered(
       COPY_ID,
       COPY_ISBN,
       TITLE,
-      AUTHOR
+      Seq(AUTHOR)
     )
 
     val actualResult = interceptRaised { underTest.decide(command, state) }
@@ -51,13 +51,13 @@ class CopyDeciderSpec extends AnyFlatSpec with RaiseSpec with Matchers {
   "CopyDecider.evolve" should "add the event to the state" in {
     val state = CopyState.empty
 
-    val actualResult = underTest.evolve(state, Event.Registered(COPY_ID, COPY_ISBN, TITLE, AUTHOR))
+    val actualResult = underTest.evolve(state, Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR)))
 
     actualResult should contain only Event.Registered(
       COPY_ID,
       COPY_ISBN,
       TITLE,
-      AUTHOR
+      Seq(AUTHOR)
     )
   }
 }

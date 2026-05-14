@@ -5,11 +5,8 @@ import in.rcard.fes.copy.application.RegisterCopyRoute.RegisterCopyDTO
 import in.rcard.fes.copy.application.Routes.ProblemDetailsDTO
 import in.rcard.fes.copy.application.Routes.ProblemDetailsDTO.ErrorDTO
 import in.rcard.fes.copy.application.constraint.ISBN13
-import in.rcard.fes.copy.domain.Domain.Author
 import in.rcard.fes.copy.domain.Domain.ISBN
-import in.rcard.fes.copy.domain.Domain.Title
 import in.rcard.fes.copy.domain.Error
-import in.rcard.fes.copy.domain.Error.UnexpectedError
 import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase
 import in.rcard.yaes.Raise
 import in.rcard.yaes.Reader
@@ -40,9 +37,7 @@ trait RegisterCopyRoute {
 object RegisterCopyRoute {
 
   case class RegisterCopyDTO(
-      isbn: String :| ISBN13,
-      title: String :| Not[Blank],
-      author: String :| Not[Blank]
+      isbn: String :| ISBN13
   ) derives Decoder
 
   def apply(registerCopyUseCase: RegisterCopyUseCase): RegisterCopyRoute = new RegisterCopyRoute {
@@ -107,13 +102,7 @@ object RegisterCopyRoute {
     override val registerCopyRoute: Route[NoParams, NoQueryParams] = POST(p"/copies") { req =>
       Raise.recover {
         val dto       = req.as[RegisterCopyDTO]
-        val newCopyId = registerCopyUseCase.registerCopy(
-          RegisterCopyUseCase.CopyToRegister(
-            isbn = ISBN(dto.isbn),
-            title = Title(dto.title),
-            author = Author(dto.author)
-          )
-        )
+        val newCopyId = registerCopyUseCase.registerCopy(ISBN(dto.isbn))
         // FIXME The Created response should return the location of the created resource.
         //       Moreover we should have a ctor with the body and another one without it.
         Response.created[String]("Ok")

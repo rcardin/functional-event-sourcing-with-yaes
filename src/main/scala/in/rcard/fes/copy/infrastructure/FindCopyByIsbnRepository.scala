@@ -7,7 +7,7 @@ import in.rcard.fes.copy.domain.Domain.ISBN
 import in.rcard.fes.copy.domain.Domain.Title
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort.Error
-import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase.CopyToRegister
+import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort.CopyToRegister
 import in.rcard.fes.util.UriOps.*
 import in.rcard.yaes.Raise
 import in.rcard.yaes.Reader
@@ -94,7 +94,7 @@ object FindCopyByIsbnRepository {
               CopyToRegister(
                 isbn = isbn,
                 title = Title(bookDto.title),
-                author = Author(bookDto.authors.headOption.getOrElse(""))
+                authors = bookDto.authors.map(Author(_))
               )
           }
 
