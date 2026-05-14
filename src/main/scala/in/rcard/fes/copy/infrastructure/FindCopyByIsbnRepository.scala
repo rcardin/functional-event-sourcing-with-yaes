@@ -10,9 +10,6 @@ import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort.Error
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort.CopyToRegister
 import in.rcard.fes.util.UriOps.*
 import in.rcard.yaes.Raise
-import in.rcard.yaes.Reader
-import in.rcard.yaes.Reader.read
-import in.rcard.yaes.Reader.reader
 import in.rcard.yaes.Sync
 import in.rcard.yaes.http.circe.given
 import in.rcard.yaes.http.client.ClientHttpError
@@ -26,7 +23,6 @@ import in.rcard.yaes.http.client.YaesClient
 import in.rcard.yaes.http.client.as
 import in.rcard.yaes.http.core.Headers
 import in.rcard.yaes.raises
-import in.rcard.yaes.reads
 import io.circe.Decoder
 import in.rcard.yaes.Log
 
@@ -129,9 +125,7 @@ object FindCopyByIsbnRepository {
     }
   }
 
-  given live(using Sync, Log, Reader[YaesClient], Reader[IsbnClientConfig]): Reader[FindCopyByIsbnPort] =
-    reader(
-      FindCopyByIsbnRepository(read[YaesClient], read[IsbnClientConfig])
-    )
+  given live(using s: Sync, l: Log, client: YaesClient, isbnClientConfig: IsbnClientConfig): FindCopyByIsbnPort =
+    FindCopyByIsbnRepository(client, isbnClientConfig)
 
 }

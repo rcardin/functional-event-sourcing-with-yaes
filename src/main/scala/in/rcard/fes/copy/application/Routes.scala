@@ -1,8 +1,6 @@
 package in.rcard.fes.copy.application
 
 import in.rcard.fes.copy.application.Routes.ProblemDetailsDTO.ErrorDTO
-import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase
-import in.rcard.yaes.Reader
 import in.rcard.yaes.http.server.params.path.NoParams
 import in.rcard.yaes.http.server.params.query.NoQueryParams
 import in.rcard.yaes.http.server.routing.Route

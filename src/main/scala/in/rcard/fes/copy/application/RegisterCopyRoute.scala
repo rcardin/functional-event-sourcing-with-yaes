@@ -9,9 +9,6 @@ import in.rcard.fes.copy.domain.Domain.ISBN
 import in.rcard.fes.copy.domain.Error
 import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase
 import in.rcard.yaes.Raise
-import in.rcard.yaes.Reader
-import in.rcard.yaes.Reader.read
-import in.rcard.yaes.Reader.reader
 import in.rcard.yaes.http.circe.given
 import in.rcard.yaes.http.core.BodyEncoder
 import in.rcard.yaes.http.core.DecodingError
@@ -24,7 +21,6 @@ import in.rcard.yaes.http.server.p
 import in.rcard.yaes.http.server.params.path.NoParams
 import in.rcard.yaes.http.server.params.query.NoQueryParams
 import in.rcard.yaes.http.server.routing.Route
-import in.rcard.yaes.reads
 import io.circe.Decoder
 import io.circe.Encoder
 import io.github.iltotore.iron.*
@@ -115,7 +111,5 @@ object RegisterCopyRoute {
     }
   }
 
-  given live: Reader[RegisterCopyRoute] reads RegisterCopyUseCase = reader(
-    RegisterCopyRoute(read[RegisterCopyUseCase])
-  )
+  given live(using useCase: RegisterCopyUseCase): RegisterCopyRoute = RegisterCopyRoute(useCase)
 }

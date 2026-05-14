@@ -5,9 +5,7 @@ import in.rcard.fes.copy.domain.Domain.{CopyId, ISBN}
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort.CopyToRegister
 import in.rcard.fes.copy.domain.{Command, Error, Event}
-import in.rcard.yaes.Reader.reader
-import in.rcard.yaes.Reader.read
-import in.rcard.yaes.{Raise, Reader, raises, reads}
+import in.rcard.yaes.{Raise, raises}
 import in.rcard.yaes.Random
 
 trait RegisterCopyUseCase {
@@ -49,15 +47,12 @@ object RegisterCopyUseCase {
     }
   }
 
-  given live: Reader[RegisterCopyUseCase] reads CopyIdGenerator reads
-    CommandHandler[CopyId, Command, Error, Event] reads FindCopyByIsbnPort =
-    reader(
-      RegisterCopyUseCase(
-        read[CopyIdGenerator],
-        read[CommandHandler[CopyId, Command, Error, Event]],
-        read[FindCopyByIsbnPort]
-      )
-    )
+  given live(using
+      copyIdGenerator: CopyIdGenerator,
+      commandHandler: CommandHandler[CopyId, Command, Error, Event],
+      findCopyByIsbnPort: FindCopyByIsbnPort
+  ): RegisterCopyUseCase =
+    RegisterCopyUseCase(copyIdGenerator, commandHandler, findCopyByIsbnPort)
 }
 
 trait CopyIdGenerator {
@@ -69,5 +64,5 @@ object CopyIdGenerator {
     override def generate(): CopyId = CopyId(Random.nextUuid)
   }
 
-  given live(using Random): Reader[CopyIdGenerator] = reader(CopyIdGenerator())
+  given live(using Random): CopyIdGenerator = CopyIdGenerator()
 }

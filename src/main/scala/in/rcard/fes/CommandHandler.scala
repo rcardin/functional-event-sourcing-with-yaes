@@ -1,7 +1,6 @@
 package in.rcard.fes
 
-import in.rcard.yaes.{Reader, raises}
-import in.rcard.yaes.Reader.reader
+import in.rcard.yaes.raises
 
 trait CommandHandler[Id, Command, Error, Event] {
   def handle(id: Id, cmd: Command): Seq[Event] raises Error
@@ -13,7 +12,5 @@ object CommandHandler {
     }
 
   // FIXME ?
-  given [Id, Command, Error, Event] => Reader[CommandHandler[Id, Command, Error, Event]] = reader(
-    CommandHandler()
-  )
+  given [Id, Command, Error, Event]: CommandHandler[Id, Command, Error, Event] = CommandHandler()
 }

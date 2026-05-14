@@ -4,12 +4,10 @@ import in.rcard.fes.AppConfig.IsbnClientConfig
 import in.rcard.fes.copy.application.RegisterCopyRoute
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort
 import in.rcard.fes.copy.infrastructure.FindCopyByIsbnRepository.live
-import in.rcard.yaes.Reader.read
 import in.rcard.yaes.http.client.{Uri, YaesClient}
 import in.rcard.yaes.http.server.{ServerDef, YaesServer}
 import in.rcard.yaes.slf4j.Slf4jLog
 import in.rcard.yaes.Raise.*
-import in.rcard.yaes.Reader.reader
 import in.rcard.yaes.{
   Clock,
   Input,
@@ -17,7 +15,6 @@ import in.rcard.yaes.{
   Output,
   Raise,
   Random,
-  Reader,
   Resource,
   Shutdown,
   Sync,
@@ -48,12 +45,11 @@ class App extends YaesApp {
 
   private def server(appConfig: AppConfig)(using Log, Random, Resource, Sync): ServerDef = {
 
-    // FIXME Don't know if I like it
-    given client: Reader[YaesClient]                 = reader(YaesClient.make())
-    given isbnClientConfig: Reader[IsbnClientConfig] = reader(appConfig.isbnClient)
+    given client: YaesClient                 = YaesClient.make()
+    given isbnClientConfig: IsbnClientConfig = appConfig.isbnClient
 
     YaesServer.route(
-      read[RegisterCopyRoute].registerCopyRoute
+      summon[RegisterCopyRoute].registerCopyRoute
     )
   }
 
