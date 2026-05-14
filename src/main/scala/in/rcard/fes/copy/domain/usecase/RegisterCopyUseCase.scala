@@ -24,12 +24,20 @@ object RegisterCopyUseCase {
       findCopyByIsbnPort: FindCopyByIsbnPort
   ): RegisterCopyUseCase = new RegisterCopyUseCase {
     override def registerCopy(copyToRegister: CopyToRegister): CopyId raises Error = {
+      val catalogCopy = Raise.recover {
+        findCopyByIsbnPort.find(copyToRegister.isbn)
+      } {
+        case FindCopyByIsbnPort.Error.NotFound(isbn) =>
+          Raise.raise(Error.UnexpectedError(s"ISBN not found in catalog: ${isbn.value}"))
+        case FindCopyByIsbnPort.Error.UnexpectedError(msg) =>
+          Raise.raise(Error.UnexpectedError(msg))
+      }
       val newCopyId = copyIdGenerator.generate()
       val cmd       = Command.Register(
         newCopyId,
-        copyToRegister.isbn,
-        copyToRegister.title,
-        copyToRegister.author
+        catalogCopy.isbn,
+        catalogCopy.title,
+        catalogCopy.author
       )
       val events = commandHandler.handle(newCopyId, cmd)
       events match {

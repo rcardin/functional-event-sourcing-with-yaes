@@ -1,5 +1,6 @@
 package in.rcard.fes.copy.application
 
+import scala.language.implicitConversions
 import in.rcard.fes.copy.application.RegisterCopyRoute.RegisterCopyDTO
 import in.rcard.fes.copy.application.Routes.ProblemDetailsDTO
 import in.rcard.fes.copy.application.Routes.ProblemDetailsDTO.ErrorDTO

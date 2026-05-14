@@ -25,8 +25,8 @@ lazy val root = (project in file("."))
     organization := "in.rcard.fes",
     version      := "0.1.0-SNAPSHOT",
     scalaVersion := scala3Version,
-    scalacOptions += "-target:25",
-    scalacOptions += "-Xfatal-warnings",
+    scalacOptions += "-release:25",
+    scalacOptions += "-Werror",
     javacOptions ++= Seq("-source", "25", "-target", "25"),
     libraryDependencies ++= Seq(
       dependencies.yaesCore,

@@ -39,7 +39,7 @@ private val REGISTER_COPY_PARSING_ERROR_RESPONSE_JSON =
   """{"title":"Invalid request body","detail":"The request body could not be parsed. Please check the syntax.","errors":[{"detail":"expected null got 'not_va...' (line 1, column 1)"}]}"""
 
 private val REGISTER_COPY_EMPTY_TITLE_VALIDATION_ERROR_RESPONSE_JSON =
-  """{"title":"Validation error","detail":"The request body is not valid. Please check the errors for more details.","errors":[{"detail":"DecodingFailure at .isbn: Should be a valid ISBN-13, DecodingFailure at .title: !(Should only contain whitespaces)"}]}"""
+  """{"title":"Validation error","detail":"The request body is not valid. Please check the errors for more details.","errors":[{"detail":"DecodingFailure at .isbn: Should be a valid ISBN-13"},{"detail":"DecodingFailure at .title: !(Should only contain whitespaces)"}]}"""
 
 private val REGISTER_ALREADY_REGISTERED_COPY_VALIDATION_ERROR_RESPONSE_JSON =
   """{"title":"Conflict","detail":"Copy already registered.","errors":[{"detail":"The copy with id 'copy1' is already registered."}]}"""

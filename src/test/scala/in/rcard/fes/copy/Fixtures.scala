@@ -19,4 +19,10 @@ object Fixtures {
 
   private[copy] val UNEXPECTED_ISBN_VALUE = "978-0-99-702549-1"
   private[copy] val UNEXPECTED_ISBN       = Domain.ISBN(UNEXPECTED_ISBN_VALUE)
+
+  private[copy] val NOT_IN_CATALOG_ISBN_VALUE = "978-3-16-148410-0"
+  private[copy] val NOT_IN_CATALOG_ISBN       = Domain.ISBN(NOT_IN_CATALOG_ISBN_VALUE)
+
+  private[copy] val CATALOG_ERROR_ISBN_VALUE = "978-0-545-01022-1"
+  private[copy] val CATALOG_ERROR_ISBN       = Domain.ISBN(CATALOG_ERROR_ISBN_VALUE)
 }

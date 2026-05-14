@@ -1,5 +1,6 @@
 package in.rcard.fes.copy.infrastructure
 
+import scala.language.implicitConversions
 import in.rcard.fes.AppConfig.IsbnClientConfig
 import in.rcard.fes.copy.domain.Domain.Author
 import in.rcard.fes.copy.domain.Domain.ISBN
