@@ -5,6 +5,7 @@ import org.scalatest.exceptions.TestFailedException
 
 import scala.reflect.ClassTag
 
+// FIXME To remove this trait
 trait RaiseSpec {
 
   def failOnRaise[E, A](body: Raise[E] ?=> A): A = {

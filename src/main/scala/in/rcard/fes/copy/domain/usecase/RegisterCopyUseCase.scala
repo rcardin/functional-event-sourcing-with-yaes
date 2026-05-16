@@ -9,7 +9,7 @@ import in.rcard.yaes.{Raise, raises}
 import in.rcard.yaes.Random
 
 trait RegisterCopyUseCase {
-  def registerCopy(isbn: ISBN): CopyId raises Error
+  def registerCopy(isbn: ISBN)(using Random): CopyId raises Error
 }
 object RegisterCopyUseCase {
 
@@ -30,7 +30,7 @@ object RegisterCopyUseCase {
       }
     }
 
-    override def registerCopy(isbn: ISBN): CopyId raises Error = {
+    override def registerCopy(isbn: ISBN)(using Random): CopyId raises Error = {
       val catalogCopy = findCopyFromCatalog(isbn)
       val newCopyId   = copyIdGenerator.generate()
       val cmd         = Command.Register(
@@ -56,13 +56,13 @@ object RegisterCopyUseCase {
 }
 
 trait CopyIdGenerator {
-  def generate(): CopyId
+  def generate()(using Random): CopyId
 }
 object CopyIdGenerator {
 
-  def apply()(using Random): CopyIdGenerator = new CopyIdGenerator {
-    override def generate(): CopyId = CopyId(Random.nextUuid)
+  def apply(): CopyIdGenerator = new CopyIdGenerator {
+    override def generate()(using Random): CopyId = CopyId(Random.nextUuid)
   }
 
-  given live(using Random): CopyIdGenerator = CopyIdGenerator()
+  given live: CopyIdGenerator = CopyIdGenerator()
 }

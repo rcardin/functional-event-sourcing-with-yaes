@@ -26,9 +26,10 @@ import io.circe.Encoder
 import io.github.iltotore.iron.*
 import io.github.iltotore.iron.circe.given
 import io.github.iltotore.iron.constraint.all.*
+import in.rcard.yaes.Random
 
 trait RegisterCopyRoute {
-  val registerCopyRoute: Route[NoParams, NoQueryParams]
+  val registerCopyRoute: Random ?=> Route[NoParams, NoQueryParams]
 }
 object RegisterCopyRoute {
 
@@ -95,19 +96,20 @@ object RegisterCopyRoute {
         )
     }
 
-    override val registerCopyRoute: Route[NoParams, NoQueryParams] = POST(p"/copies") { req =>
-      Raise.recover {
-        val dto       = req.as[RegisterCopyDTO]
-        val newCopyId = registerCopyUseCase.registerCopy(ISBN(dto.isbn))
-        // FIXME The Created response should return the location of the created resource.
-        //       Moreover we should have a ctor with the body and another one without it.
-        Response.created[String]("Ok")
-      } { (error: Error | DecodingError) =>
-        error match {
-          case decodingError: DecodingError => handlingDecodingErrors(decodingError)
-          case error: Error                 => handlingDomainErrors(error)
+    override val registerCopyRoute: Random ?=> Route[NoParams, NoQueryParams] = POST(p"/copies") {
+      req =>
+        Raise.recover {
+          val dto       = req.as[RegisterCopyDTO]
+          val newCopyId = registerCopyUseCase.registerCopy(ISBN(dto.isbn))
+          // FIXME The Created response should return the location of the created resource.
+          //       Moreover we should have a ctor with the body and another one without it.
+          Response.created[String]("Ok")
+        } { (error: Error | DecodingError) =>
+          error match {
+            case decodingError: DecodingError => handlingDecodingErrors(decodingError)
+            case error: Error                 => handlingDomainErrors(error)
+          }
         }
-      }
     }
   }
 

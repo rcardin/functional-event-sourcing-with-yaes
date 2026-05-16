@@ -6,13 +6,15 @@ import in.rcard.fes.copy.domain.Domain.{CopyId, ISBN}
 import in.rcard.fes.copy.domain.{Command, Error, Event}
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort.CopyToRegister
-import in.rcard.fes.utils.RaiseSpec
-import in.rcard.yaes.{Raise, raises}
+import in.rcard.fes.utils.{RaiseSpec, RandomSpec}
+import in.rcard.yaes.{Raise, Random, raises}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class RegisterCopyUseCaseSpec extends AnyFlatSpec with RaiseSpec with Matchers {
-  val mockCopyIdGenerator: CopyIdGenerator                              = () => COPY_ID
+class RegisterCopyUseCaseSpec extends AnyFlatSpec with RaiseSpec with RandomSpec with Matchers {
+  val mockCopyIdGenerator: CopyIdGenerator = new CopyIdGenerator {
+    override def generate()(using Random): CopyId = COPY_ID
+  }
   val mockCommandHandler: CommandHandler[CopyId, Command, Error, Event] =
     new CommandHandler[CopyId, Command, Error, Event] {
       override def handle(id: CopyId, cmd: Command): Seq[Event] raises Error = cmd match {
@@ -28,8 +30,9 @@ class RegisterCopyUseCaseSpec extends AnyFlatSpec with RaiseSpec with Matchers {
   val mockFindCopyByIsbnPort: FindCopyByIsbnPort = new FindCopyByIsbnPort {
     override def find(isbn: ISBN): CopyToRegister raises FindCopyByIsbnPort.Error = isbn match {
       case NOT_IN_CATALOG_ISBN => Raise.raise(FindCopyByIsbnPort.Error.NotFound(isbn))
-      case CATALOG_ERROR_ISBN  => Raise.raise(FindCopyByIsbnPort.Error.UnexpectedError("Catalog error"))
-      case _                   => CopyToRegister(isbn, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR))
+      case CATALOG_ERROR_ISBN  =>
+        Raise.raise(FindCopyByIsbnPort.Error.UnexpectedError("Catalog error"))
+      case _ => CopyToRegister(isbn, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR))
     }
   }
 
@@ -43,6 +46,9 @@ class RegisterCopyUseCaseSpec extends AnyFlatSpec with RaiseSpec with Matchers {
   }
 
   it should "not register a copy if it is already registered" in {
+
+    RandomStub.nextInts(1, 2, 3)
+
     val actualResult = interceptRaised { underTest.registerCopy(ALREADY_REGISTERED_ISBN) }
 
     actualResult shouldBe Error.AlreadyRegistered(COPY_ID)
