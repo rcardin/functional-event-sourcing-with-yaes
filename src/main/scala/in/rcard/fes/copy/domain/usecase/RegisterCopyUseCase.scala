@@ -7,9 +7,10 @@ import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort.CopyToRegister
 import in.rcard.fes.copy.domain.{Command, Error, Event}
 import in.rcard.yaes.{Raise, raises}
 import in.rcard.yaes.Random
+import in.rcard.yaes.Sync
 
 trait RegisterCopyUseCase {
-  def registerCopy(isbn: ISBN)(using Random): CopyId raises Error
+  def registerCopy(isbn: ISBN)(using Random, Sync): CopyId raises Error
 }
 object RegisterCopyUseCase {
 
@@ -19,7 +20,7 @@ object RegisterCopyUseCase {
       findCopyByIsbnPort: FindCopyByIsbnPort
   ): RegisterCopyUseCase = new RegisterCopyUseCase {
 
-    def findCopyFromCatalog(isbn: ISBN): CopyToRegister raises Error = {
+    def findCopyFromCatalog(isbn: ISBN)(using Sync): CopyToRegister raises Error = {
       Raise.recover {
         findCopyByIsbnPort.find(isbn)
       } {
@@ -30,7 +31,7 @@ object RegisterCopyUseCase {
       }
     }
 
-    override def registerCopy(isbn: ISBN)(using Random): CopyId raises Error = {
+    override def registerCopy(isbn: ISBN)(using Random, Sync): CopyId raises Error = {
       val catalogCopy = findCopyFromCatalog(isbn)
       val newCopyId   = copyIdGenerator.generate()
       val cmd         = Command.Register(
@@ -54,4 +55,3 @@ object RegisterCopyUseCase {
   ): RegisterCopyUseCase =
     RegisterCopyUseCase(copyIdGenerator, commandHandler, findCopyByIsbnPort)
 }
-

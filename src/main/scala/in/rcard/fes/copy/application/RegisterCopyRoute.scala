@@ -27,9 +27,10 @@ import io.github.iltotore.iron.*
 import io.github.iltotore.iron.circe.given
 import io.github.iltotore.iron.constraint.all.*
 import in.rcard.yaes.Random
+import in.rcard.yaes.Sync
 
 trait RegisterCopyRoute {
-  val registerCopyRoute: Random ?=> Route[NoParams, NoQueryParams]
+  val registerCopyRoute: (Random, Sync) ?=> Route[NoParams, NoQueryParams]
 }
 object RegisterCopyRoute {
 
@@ -96,7 +97,7 @@ object RegisterCopyRoute {
         )
     }
 
-    override val registerCopyRoute: Random ?=> Route[NoParams, NoQueryParams] = POST(p"/copies") {
+    override val registerCopyRoute: (Random, Sync) ?=> Route[NoParams, NoQueryParams] = POST(p"/copies") {
       req =>
         Raise.recover {
           val dto       = req.as[RegisterCopyDTO]

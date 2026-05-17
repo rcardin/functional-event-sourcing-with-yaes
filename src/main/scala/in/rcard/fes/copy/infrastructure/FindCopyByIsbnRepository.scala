@@ -31,7 +31,7 @@ object FindCopyByIsbnRepository {
   def apply(
       httpClient: YaesClient,
       clientConfig: IsbnClientConfig
-  )(using Sync, Log): FindCopyByIsbnPort = {
+  )(using Log): FindCopyByIsbnPort = {
 
     case class MerchantLogoOffsetDto(x: String, y: String) derives Decoder
 
@@ -75,7 +75,7 @@ object FindCopyByIsbnRepository {
 
       val logger = Log.getLogger("FindCopyByIsbnPort")
 
-      override def find(isbn: ISBN): CopyToRegister raises Error = {
+      override def find(isbn: ISBN)(using Sync): CopyToRegister raises Error = {
 
         val req = HttpRequest
           .get(clientConfig.host / "books" / isbn.value)
@@ -125,7 +125,7 @@ object FindCopyByIsbnRepository {
     }
   }
 
-  given live(using s: Sync, l: Log, client: YaesClient, isbnClientConfig: IsbnClientConfig): FindCopyByIsbnPort =
+  given live(using l: Log, client: YaesClient, isbnClientConfig: IsbnClientConfig): FindCopyByIsbnPort =
     FindCopyByIsbnRepository(client, isbnClientConfig)
 
 }
