@@ -55,14 +55,3 @@ object RegisterCopyUseCase {
     RegisterCopyUseCase(copyIdGenerator, commandHandler, findCopyByIsbnPort)
 }
 
-trait CopyIdGenerator {
-  def generate()(using Random): CopyId
-}
-object CopyIdGenerator {
-
-  def apply(): CopyIdGenerator = new CopyIdGenerator {
-    override def generate()(using Random): CopyId = CopyId(Random.nextUuid)
-  }
-
-  given live: CopyIdGenerator = CopyIdGenerator()
-}
