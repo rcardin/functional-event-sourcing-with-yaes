@@ -21,3 +21,8 @@ project/metals.sbt
 
 # OS
 .DS_Store
+
+# Agent
+PROMPT.md
+FINDINGS.md
+STOP.md

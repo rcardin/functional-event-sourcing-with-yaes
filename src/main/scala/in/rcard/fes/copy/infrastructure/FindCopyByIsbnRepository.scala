@@ -83,16 +83,13 @@ object FindCopyByIsbnRepository {
           .queryParam("with_prices", "false")
 
         Raise.recover {
-          val res = httpClient.send(req)
-          res.status match {
-            case 200 =>
-              val bookDto = res.as[BookDto]
-              CopyToRegister(
-                isbn = isbn,
-                title = Title(bookDto.title),
-                authors = bookDto.authors.map(Author(_))
-              )
-          }
+          val res     = httpClient.send(req)
+          val bookDto = res.as[BookDto]
+          CopyToRegister(
+            isbn = isbn,
+            title = Title(bookDto.title),
+            authors = bookDto.authors.map(Author(_))
+          )
 
         } {
           case ce: ConnectionError =>
