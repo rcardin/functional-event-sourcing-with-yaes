@@ -1,0 +1,74 @@
+package in.rcard.fes.copy.infrastructure
+
+import in.rcard.fes.AppConfig.IsbnClientConfig
+import in.rcard.fes.copy.domain.Domain.{Author, ISBN, Title}
+import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort
+import in.rcard.fes.utils.{LogSpec, StubHttpServerSpec, StubResponse, SyncSpec}
+import in.rcard.yaes.{Raise, Resource}
+import in.rcard.yaes.http.client.{Uri, YaesClient}
+import io.github.iltotore.iron.*
+import io.github.iltotore.iron.constraint.all.*
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+class FindCopyByIsbnRepositorySpec
+    extends AnyFlatSpec
+    with StubHttpServerSpec
+    with LogSpec
+    with SyncSpec
+    with Matchers {
+
+  private val isbn   = ISBN("9780593135204")
+  private val apiKey: String :| Not[Empty] = "test-api-key".assume
+
+  private val validBookJson =
+    """{
+      |  "title": "Foundation",
+      |  "isbn13": "9780593135204",
+      |  "isbn10": "0593135202",
+      |  "deweyDecimal": [],
+      |  "binding": "Paperback",
+      |  "publisher": "Spectra",
+      |  "language": "en",
+      |  "datePublished": "2020-07-07",
+      |  "edition": "Reissue",
+      |  "pages": 255,
+      |  "dimensionsStructured": [],
+      |  "image": "",
+      |  "imageOriginal": "",
+      |  "msrp": 0.0,
+      |  "excerpt": "",
+      |  "synopsis": "",
+      |  "authors": ["Isaac Asimov"],
+      |  "subjects": [],
+      |  "prices": [],
+      |  "otherIsbns": []
+      |}""".stripMargin
+
+  private def clientConfig: IsbnClientConfig =
+    val host = Raise.fold(Uri(stubBaseUrl)) { e => throw AssertionError(s"Invalid URI: $e") }(identity)
+    IsbnClientConfig(host, apiKey)
+
+  "FindCopyByIsbnRepository" should "return correct CopyToRegister and send correct request on HTTP 200" in {
+    stubServer.setHandler(_ => StubResponse(200, validBookJson))
+
+    val result = withSync {
+      Resource.run {
+        val client = YaesClient.make()
+        val repo   = FindCopyByIsbnRepository(client, clientConfig)
+        Raise.fold(repo.find(isbn)) { err => fail(s"Expected success, got: $err") }(identity)
+      }
+    }
+
+    result.isbn shouldBe isbn
+    result.title shouldBe Title("Foundation")
+    result.authors shouldBe Seq(Author("Isaac Asimov"))
+
+    val captured = stubServer.capturedRequests
+    captured should have size 1
+    captured.head.path shouldBe s"/books/${isbn.value}"
+    captured.head.headers should contain key "authorization"
+    captured.head.headers("authorization") shouldBe apiKey
+    captured.head.rawQuery shouldBe Some("with_prices=false")
+  }
+}
