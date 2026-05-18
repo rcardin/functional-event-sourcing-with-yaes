@@ -10,15 +10,17 @@ import io.github.iltotore.iron.*
 import io.github.iltotore.iron.constraint.all.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import in.rcard.fes.utils.RaiseSpec
 
 class FindCopyByIsbnRepositorySpec
     extends AnyFlatSpec
     with StubHttpServerSpec
     with LogSpec
     with SyncSpec
+    with RaiseSpec
     with Matchers {
 
-  private val isbn   = ISBN("9780593135204")
+  private val isbn                         = ISBN("9780593135204")
   private val apiKey: String :| Not[Empty] = "test-api-key".assume
 
   private val validBookJson =
@@ -46,19 +48,19 @@ class FindCopyByIsbnRepositorySpec
       |}""".stripMargin
 
   private def clientConfig: IsbnClientConfig =
-    val host = Raise.fold(Uri(stubBaseUrl)) { e => throw AssertionError(s"Invalid URI: $e") }(identity)
+    val host =
+      Raise.fold(Uri(stubBaseUrl)) { e => throw AssertionError(s"Invalid URI: $e") }(identity)
     IsbnClientConfig(host, apiKey)
 
-  "FindCopyByIsbnRepository" should "return correct CopyToRegister and send correct request on HTTP 200" in {
+  "FindCopyByIsbnRepository" should "return correct CopyToRegister and send correct request on HTTP 200" in withSync {
     stubServer.setHandler(_ => StubResponse(200, validBookJson))
 
-    val result = withSync {
+    val result =
       Resource.run {
         val client = YaesClient.make()
         val repo   = FindCopyByIsbnRepository(client, clientConfig)
-        Raise.fold(repo.find(isbn)) { err => fail(s"Expected success, got: $err") }(identity)
+        failOnRaise(repo.find(isbn))
       }
-    }
 
     result.isbn shouldBe isbn
     result.title shouldBe Title("Foundation")
@@ -72,35 +74,33 @@ class FindCopyByIsbnRepositorySpec
     captured.head.rawQuery shouldBe Some("with_prices=false")
   }
 
-  it should "raise NotFound error on HTTP 404" in {
+  it should "raise NotFound error on HTTP 404" in withSync {
     stubServer.setHandler(_ => StubResponse(404, ""))
 
-    val error = withSync {
+    val error =
       Resource.run {
         val client = YaesClient.make()
         val repo   = FindCopyByIsbnRepository(client, clientConfig)
-        Raise.fold(repo.find(isbn))(identity)(_ => fail("Expected error but got success"))
+        interceptRaised(repo.find(isbn))
       }
-    }
 
     error shouldBe FindCopyByIsbnPort.Error.NotFound(isbn)
   }
 
-  it should "raise UnexpectedError on HTTP 500" in {
+  it should "raise UnexpectedError on HTTP 500" in withSync {
     stubServer.setHandler(_ => StubResponse(500, "Internal Server Error"))
 
-    val error = withSync {
+    val error =
       Resource.run {
         val client = YaesClient.make()
         val repo   = FindCopyByIsbnRepository(client, clientConfig)
-        Raise.fold(repo.find(isbn))(identity)(_ => fail("Expected error but got success"))
+        interceptRaised(repo.find(isbn))
       }
-    }
 
     error shouldBe a[FindCopyByIsbnPort.Error.UnexpectedError]
   }
 
-  it should "raise UnexpectedError on connection refused" in {
+  it should "raise UnexpectedError on connection refused" in withSync {
     val unusedPort = {
       val s = new java.net.ServerSocket(0)
       val p = s.getLocalPort
@@ -114,41 +114,38 @@ class FindCopyByIsbnRepositorySpec
       IsbnClientConfig(host, apiKey)
     }
 
-    val error = withSync {
+    val error =
       Resource.run {
         val client = YaesClient.make()
         val repo   = FindCopyByIsbnRepository(client, refusedConfig)
-        Raise.fold(repo.find(isbn))(identity)(_ => fail("Expected error but got success"))
+        interceptRaised(repo.find(isbn))
       }
-    }
 
     error shouldBe a[FindCopyByIsbnPort.Error.UnexpectedError]
   }
 
-  it should "raise UnexpectedError on HTTP 200 with syntactically invalid JSON" in {
+  it should "raise UnexpectedError on HTTP 200 with syntactically invalid JSON" in withSync {
     stubServer.setHandler(_ => StubResponse(200, """{ invalid json """))
 
-    val error = withSync {
+    val error =
       Resource.run {
         val client = YaesClient.make()
         val repo   = FindCopyByIsbnRepository(client, clientConfig)
-        Raise.fold(repo.find(isbn))(identity)(_ => fail("Expected error but got success"))
+        interceptRaised(repo.find(isbn))
       }
-    }
 
     error shouldBe a[FindCopyByIsbnPort.Error.UnexpectedError]
   }
 
-  it should "raise UnexpectedError on HTTP 200 with structurally invalid JSON" in {
+  it should "raise UnexpectedError on HTTP 200 with structurally invalid JSON" in withSync {
     stubServer.setHandler(_ => StubResponse(200, """{}"""))
 
-    val error = withSync {
+    val error =
       Resource.run {
         val client = YaesClient.make()
         val repo   = FindCopyByIsbnRepository(client, clientConfig)
-        Raise.fold(repo.find(isbn))(identity)(_ => fail("Expected error but got success"))
+        interceptRaised(repo.find(isbn))
       }
-    }
 
     error shouldBe a[FindCopyByIsbnPort.Error.UnexpectedError]
   }
