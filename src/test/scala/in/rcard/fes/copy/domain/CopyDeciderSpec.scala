@@ -2,11 +2,11 @@ package in.rcard.fes.copy.domain
 
 import in.rcard.fes.copy.domain.Domain.*
 import in.rcard.fes.copy.domain.{Command, CopyDecider, Error, Event}
-import in.rcard.fes.utils.RaiseSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.language.postfixOps
+import in.rcard.yaes.test.scalatest.RaiseSpec
 
 private val COPY_ID = CopyId("copy1")
 private val COPY_ISBN = ISBN("isbn1")

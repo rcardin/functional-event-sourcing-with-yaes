@@ -17,6 +17,7 @@ lazy val dependencies =
     val yaesHttpCirce     = "in.rcard.yaes"         %% "yaes-http-circe"  % yaesVersion
     val yaesSlf4j         = "in.rcard.yaes"         %% "yaes-slf4j"       % yaesVersion
     val yaesHttpClient    = "in.rcard.yaes"         %% "yaes-http-client" % yaesVersion
+    val yaesCoreScalatest = "in.rcard.yaes" %% "yaes-core-test-scalatest" % yaesVersion
   }
 
 lazy val root = (project in file("."))
@@ -38,7 +39,8 @@ lazy val root = (project in file("."))
       dependencies.ironCirce,
       dependencies.pureConfig,
       dependencies.ironPureConfig,
-      dependencies.scalatest % Test
+      dependencies.scalatest         % Test,
+      dependencies.yaesCoreScalatest % Test
     ),
     Test / logBuffered       := false,
     Test / parallelExecution := false,

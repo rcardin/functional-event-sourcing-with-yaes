@@ -7,7 +7,6 @@ import in.rcard.fes.copy.domain.Domain.ISBN
 import in.rcard.fes.copy.domain.Domain.Title
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort
 import in.rcard.fes.utils.LogSpec
-import in.rcard.fes.utils.RaiseSpec
 import in.rcard.fes.utils.StubHttpServerSpec
 import in.rcard.fes.utils.StubResponse
 import in.rcard.fes.utils.SyncSpec
@@ -15,6 +14,7 @@ import in.rcard.yaes.Raise
 import in.rcard.yaes.Resource
 import in.rcard.yaes.http.client.Uri
 import in.rcard.yaes.http.client.YaesClient
+import in.rcard.yaes.test.scalatest.RaiseSpec
 import io.github.iltotore.iron.*
 import io.github.iltotore.iron.constraint.all.*
 import org.scalatest.flatspec.AnyFlatSpec

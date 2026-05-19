@@ -6,13 +6,19 @@ import in.rcard.fes.copy.domain.Domain.{CopyId, ISBN}
 import in.rcard.fes.copy.domain.{Command, Error, Event}
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort.CopyToRegister
-import in.rcard.fes.utils.{RaiseSpec, RandomSpec, SyncSpec}
+import in.rcard.fes.utils.{RandomSpec, SyncSpec}
 import in.rcard.yaes.{Raise, Random, raises}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import in.rcard.yaes.Sync
+import in.rcard.yaes.test.scalatest.RaiseSpec
 
-class RegisterCopyUseCaseSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with RandomSpec with Matchers {
+class RegisterCopyUseCaseSpec
+    extends AnyFlatSpec
+    with SyncSpec
+    with RaiseSpec
+    with RandomSpec
+    with Matchers {
   val mockCopyIdGenerator: CopyIdGenerator = new CopyIdGenerator {
     override def generate()(using Random): CopyId = COPY_ID
   }
@@ -29,12 +35,13 @@ class RegisterCopyUseCaseSpec extends AnyFlatSpec with SyncSpec with RaiseSpec w
     }
 
   val mockFindCopyByIsbnPort: FindCopyByIsbnPort = new FindCopyByIsbnPort {
-    override def find(isbn: ISBN)(using Sync): CopyToRegister raises FindCopyByIsbnPort.Error = isbn match {
-      case NOT_IN_CATALOG_ISBN => Raise.raise(FindCopyByIsbnPort.Error.NotFound(isbn))
-      case CATALOG_ERROR_ISBN  =>
-        Raise.raise(FindCopyByIsbnPort.Error.UnexpectedError("Catalog error"))
-      case _ => CopyToRegister(isbn, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR))
-    }
+    override def find(isbn: ISBN)(using Sync): CopyToRegister raises FindCopyByIsbnPort.Error =
+      isbn match {
+        case NOT_IN_CATALOG_ISBN => Raise.raise(FindCopyByIsbnPort.Error.NotFound(isbn))
+        case CATALOG_ERROR_ISBN  =>
+          Raise.raise(FindCopyByIsbnPort.Error.UnexpectedError("Catalog error"))
+        case _ => CopyToRegister(isbn, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR))
+      }
   }
 
   private val underTest =
