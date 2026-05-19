@@ -12,7 +12,7 @@ case class CapturedRequest(
     method: String,
     path: String,
     rawQuery: Option[String],
-    headers: Map[String, String],
+    headers: Map[String, List[String]],
     body: String
 )
 
@@ -42,7 +42,7 @@ class StubHttpServer {
           path = uri.getRawPath,
           rawQuery = Option(uri.getRawQuery),
           headers = exchange.getRequestHeaders.entrySet().asScala.map { entry =>
-            entry.getKey.toLowerCase(Locale.ROOT) -> entry.getValue.asScala.mkString(", ")
+            entry.getKey.toLowerCase(Locale.ROOT) -> entry.getValue.asScala.toList
           }.toMap,
           body = body
         )

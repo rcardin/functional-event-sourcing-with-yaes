@@ -48,8 +48,7 @@ class FindCopyByIsbnRepositorySpec
       |}""".stripMargin
 
   private def clientConfig: IsbnClientConfig =
-    val host =
-      Raise.fold(Uri(stubBaseUrl)) { e => throw AssertionError(s"Invalid URI: $e") }(identity)
+    val host = failOnRaise(Uri(stubBaseUrl))
     IsbnClientConfig(host, apiKey)
 
   "FindCopyByIsbnRepository" should "return correct CopyToRegister and send correct request on HTTP 200" in withSync {
@@ -62,15 +61,17 @@ class FindCopyByIsbnRepositorySpec
         failOnRaise(repo.find(isbn))
       }
 
-    result.isbn shouldBe isbn
-    result.title shouldBe Title("Foundation")
-    result.authors shouldBe Seq(Author("Isaac Asimov"))
+    result shouldBe FindCopyByIsbnPort.CopyToRegister(
+      isbn,
+      Title("Foundation"),
+      Seq(Author("Isaac Asimov"))
+    )
 
     val captured = stubServer.capturedRequests
     captured should have size 1
     captured.head.path shouldBe s"/books/${isbn.value}"
     captured.head.headers should contain key "authorization"
-    captured.head.headers("authorization") shouldBe apiKey
+    captured.head.headers("authorization") shouldBe List(apiKey)
     captured.head.rawQuery shouldBe Some("with_prices=false")
   }
 

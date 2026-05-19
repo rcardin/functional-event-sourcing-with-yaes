@@ -66,7 +66,7 @@ class StubHttpServerSpecVerification
     sendRequest("GET", "/test", headers = Map("Authorization" -> "Bearer token123"))
     val captured = stubServer.capturedRequests
     captured.head.headers should contain key "authorization"
-    captured.head.headers("authorization") shouldBe "Bearer token123"
+    captured.head.headers("authorization") shouldBe List("Bearer token123")
   }
 
   it should "capture the request body" in {
@@ -84,6 +84,32 @@ class StubHttpServerSpecVerification
     captured should have size 2
     captured(0).path shouldBe "/first"
     captured(1).path shouldBe "/second"
+  }
+
+  it should "pass the captured request to the handler so it can vary the response by path" in {
+    stubServer.setHandler { req =>
+      if req.path == "/found" then StubResponse(200, "yes")
+      else StubResponse(404, "no")
+    }
+    val (s1, b1) = sendRequest("GET", "/found")
+    val (s2, b2) = sendRequest("GET", "/other")
+    s1 shouldBe 200
+    b1 shouldBe "yes"
+    s2 shouldBe 404
+    b2 shouldBe "no"
+  }
+
+  it should "pass the captured request body to the handler so it can vary the response" in {
+    stubServer.setHandler { req =>
+      if req.body.contains("admin") then StubResponse(200, "welcome admin")
+      else StubResponse(403, "forbidden")
+    }
+    val (s1, b1) = sendRequest("POST", "/login", body = """{"user":"admin"}""")
+    val (s2, b2) = sendRequest("POST", "/login", body = """{"user":"guest"}""")
+    s1 shouldBe 200
+    b1 shouldBe "welcome admin"
+    s2 shouldBe 403
+    b2 shouldBe "forbidden"
   }
 
   it should "clear captures and revert handler to default on reset()" in {
