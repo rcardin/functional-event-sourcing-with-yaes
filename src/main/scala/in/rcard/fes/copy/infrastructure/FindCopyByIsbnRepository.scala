@@ -98,12 +98,10 @@ object FindCopyByIsbnRepository {
           case _: HttpError.NotFound =>
             logger.warn(s"ISBN not found: ${isbn.value}")
             Raise.raise(FindCopyByIsbnPort.Error.NotFound(isbn))
-          // FIXME The HttpError should have a common way to retrive the body
           case he: HttpError =>
             logger.error(s"Unexpected HTTP error: ${he.body}")
             Raise.raise(FindCopyByIsbnPort.Error.UnexpectedError(s"Unexpected HTTP error"))
           case in.rcard.yaes.http.core.DecodingError.ParseError(msg, _) =>
-            // FIXME An error version with the exception
             logger.error(s"Error parsing response from ISBN service: $msg")
             Raise.raise(
               FindCopyByIsbnPort.Error.UnexpectedError(s"Error parsing response from ISBN service")

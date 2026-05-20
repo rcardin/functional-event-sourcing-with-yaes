@@ -1,6 +1,6 @@
 package in.rcard.fes.copy.domain.usecase
 
-import in.rcard.fes.CommandHandler
+import in.rcard.fes.{CommandHandler, EventStorePort}
 import in.rcard.fes.copy.Fixtures.*
 import in.rcard.fes.copy.domain.Domain.{CopyId, ISBN}
 import in.rcard.fes.copy.domain.{Command, Error, Event}
@@ -24,7 +24,7 @@ class RegisterCopyUseCaseSpec
   }
   val mockCommandHandler: CommandHandler[CopyId, Command, Error, Event] =
     new CommandHandler[CopyId, Command, Error, Event] {
-      override def handle(id: CopyId, cmd: Command): Seq[Event] raises Error = cmd match {
+      override def handle(id: CopyId, cmd: Command)(using Sync, Raise[EventStorePort.Error]): Seq[Event] raises Error = cmd match {
         case Command.Register(copyId, isbn, title, authors) if isbn == ALREADY_REGISTERED_ISBN =>
           Raise.raise(Error.AlreadyRegistered(copyId))
         case Command.Register(copyId, isbn, title, authors) if isbn == FOUNDATION_ISBN =>

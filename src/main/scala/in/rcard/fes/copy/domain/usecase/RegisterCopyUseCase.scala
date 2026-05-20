@@ -1,6 +1,6 @@
 package in.rcard.fes.copy.domain.usecase
 
-import in.rcard.fes.CommandHandler
+import in.rcard.fes.{CommandHandler, EventStorePort}
 import in.rcard.fes.copy.domain.Domain.{CopyId, ISBN}
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort.CopyToRegister
@@ -40,7 +40,14 @@ object RegisterCopyUseCase {
         catalogCopy.title,
         catalogCopy.authors
       )
-      val events = commandHandler.handle(newCopyId, cmd)
+      val events = Raise.recover[EventStorePort.Error, Seq[Event]] {
+        commandHandler.handle(newCopyId, cmd)
+      } {
+        case EventStorePort.Error.VersionConflict(id) =>
+          Raise.raise(Error.UnexpectedError(s"Version conflict for copy: $id"))
+        case EventStorePort.Error.UnexpectedError(msg) =>
+          Raise.raise(Error.UnexpectedError(msg))
+      }
       events match {
         case Event.Registered(copyId, _, _, _) :: Nil => copyId
         case _ => Raise.raise(Error.UnexpectedError("Unexpected state after copy registration"))
