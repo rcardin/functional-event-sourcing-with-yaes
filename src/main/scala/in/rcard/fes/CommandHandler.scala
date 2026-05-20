@@ -13,11 +13,21 @@ object CommandHandler {
   ): CommandHandler[Id, Command, Error, Event] =
     new CommandHandler[Id, Command, Error, Event] {
       override def handle(id: Id, cmd: Command)(using Sync, Raise[EventStorePort.Error]): Seq[Event] raises Error = {
-        val stream    = eventStore.load(id)
-        val state     = stream.events.foldLeft(decider.initialState)(decider.evolve)
-        val newEvents = decider.decide(cmd, state)
-        eventStore.save(id, stream.version, newEvents)
-        newEvents
+        def attempt(): Seq[Event] = {
+          val stream = eventStore.load(id)
+          val state  = stream.events.foldLeft(decider.initialState)(decider.evolve)
+          if decider.isTerminal(state) then Seq.empty
+          else
+            val newEvents = decider.decide(cmd, state)
+            Raise.recover[EventStorePort.Error, Seq[Event]] {
+              eventStore.save(id, stream.version, newEvents)
+              newEvents
+            } {
+              case EventStorePort.Error.VersionConflict(_) => attempt()
+              case other                                    => Raise.raise(other)
+            }
+        }
+        attempt()
       }
     }
 

@@ -1,9 +1,9 @@
 package in.rcard.fes.copy
 
-import in.rcard.fes.{CommandHandler, EventStorePort}
+import in.rcard.fes.{CommandHandler, Decider, EventStorePort}
 import in.rcard.fes.copy.Fixtures.*
 import in.rcard.fes.copy.domain.{Command, Error, Event}
-import in.rcard.fes.copy.domain.Domain.CopyId
+import in.rcard.fes.copy.domain.Domain.{CopyId, CopyState}
 import in.rcard.fes.copy.domain.CopyDecider
 import in.rcard.fes.utils.SyncSpec
 import in.rcard.yaes.{Raise, Sync, raises}
@@ -91,22 +91,47 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
     )
   }
 
-  it should "propagate VersionConflict when save raises it" in withSync {
-    val conflictStore = new EventStorePort[CopyId, Event] {
+  it should "retry on VersionConflict and succeed on second attempt" in withSync {
+    var saveCallCount = 0
+    val retryStore = new EventStorePort[CopyId, Event] {
       override def load(id: CopyId)(using Sync): EventStorePort.EventStream[Event] raises EventStorePort.Error =
         EventStorePort.EventStream(0, Seq.empty)
-      override def save(id: CopyId, expectedVersion: Long, events: Seq[Event])(using Sync): Unit raises EventStorePort.Error =
-        Raise.raise(EventStorePort.Error.VersionConflict(id))
-    }
-    val handler = CommandHandler.apply(decider, conflictStore)
-
-    val error = interceptRaised[EventStorePort.Error, Seq[Event]] {
-      failOnRaise[Error, Seq[Event]] {
-        handler.handle(COPY_ID, registerCmd)
+      override def save(id: CopyId, expectedVersion: Long, events: Seq[Event])(using Sync): Unit raises EventStorePort.Error = {
+        saveCallCount += 1
+        if saveCallCount == 1 then Raise.raise(EventStorePort.Error.VersionConflict(id))
       }
     }
+    val handler = CommandHandler.apply(decider, retryStore)
 
-    error shouldBe EventStorePort.Error.VersionConflict(COPY_ID)
+    val result = failOnRaise[Error, Seq[Event]] {
+      Raise.recover[EventStorePort.Error, Seq[Event]] {
+        handler.handle(COPY_ID, registerCmd)
+      } { err => fail(s"EventStore raised unexpected error: $err") }
+    }
+
+    result shouldBe Seq(Event.Registered(COPY_ID, FOUNDATION_ISBN, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR)))
+    saveCallCount shouldBe 2
+  }
+
+  it should "return empty events when aggregate is terminal" in withSync {
+    val terminalDecider = new Decider[Command, Event, CopyState, Error] {
+      override def decide(command: Command, state: CopyState): Seq[Event] raises Error =
+        Seq(Event.Registered(COPY_ID, FOUNDATION_ISBN, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR)))
+      override def evolve(state: CopyState, event: Event): CopyState = state :+ event
+      override val initialState: CopyState                            = CopyState.empty
+      override def isTerminal(state: CopyState): Boolean             = true
+    }
+    val store   = InMemoryEventStore()
+    val handler = CommandHandler.apply(terminalDecider, store)
+
+    val result = failOnRaise[Error, Seq[Event]] {
+      Raise.recover[EventStorePort.Error, Seq[Event]] {
+        handler.handle(COPY_ID, registerCmd)
+      } { err => fail(s"EventStore raised unexpected error: $err") }
+    }
+
+    result shouldBe Seq.empty
+    store.savedEvents(COPY_ID) shouldBe Seq.empty
   }
 
   it should "propagate UnexpectedError when load raises it" in withSync {

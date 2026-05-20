@@ -22,5 +22,5 @@ class CopyDecider extends Decider[Command, Event, CopyState, Error] {
 
   override val initialState: CopyState = CopyState.empty
 
-  override def isTerminal(state: CopyState): Boolean = ???
+  override def isTerminal(state: CopyState): Boolean = false
 }
