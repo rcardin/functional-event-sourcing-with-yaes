@@ -1,6 +1,8 @@
 package in.rcard.fes
 
-import in.rcard.yaes.{Raise, Sync, raises}
+import in.rcard.yaes.Raise
+import in.rcard.yaes.Sync
+import in.rcard.yaes.raises
 
 trait CommandHandler[Id, Command, Error, Event] {
   def handle(id: Id, cmd: Command)(using Sync, Raise[EventStorePort.Error]): Seq[Event] raises Error
@@ -12,19 +14,22 @@ object CommandHandler {
       eventStore: EventStorePort[Id, Event]
   ): CommandHandler[Id, Command, Error, Event] =
     new CommandHandler[Id, Command, Error, Event] {
-      override def handle(id: Id, cmd: Command)(using Sync, Raise[EventStorePort.Error]): Seq[Event] raises Error = {
+      override def handle(id: Id, cmd: Command)(using
+          Sync,
+          Raise[EventStorePort.Error]
+      ): Seq[Event] raises Error = {
         def attempt(): Seq[Event] = {
-          val stream = eventStore.load(id)
-          val state  = stream.events.foldLeft(decider.initialState)(decider.evolve)
+          val EventStorePort.EventStream(version, events) = eventStore.load(id)
+          val state = events.foldLeft(decider.initialState)(decider.evolve)
           if decider.isTerminal(state) then Seq.empty
           else
             val newEvents = decider.decide(cmd, state)
             Raise.recover[EventStorePort.Error, Seq[Event]] {
-              eventStore.save(id, stream.version, newEvents)
+              eventStore.save(id, version, newEvents)
               newEvents
             } {
               case EventStorePort.Error.VersionConflict(_) => attempt()
-              case other                                    => Raise.raise(other)
+              case other                                   => Raise.raise(other)
             }
         }
         attempt()
@@ -34,7 +39,10 @@ object CommandHandler {
   // TODO: replace with real DI wiring once EventStorePort is implemented
   given [Id, Command, Error, Event]: CommandHandler[Id, Command, Error, Event] =
     new CommandHandler[Id, Command, Error, Event] {
-      override def handle(id: Id, cmd: Command)(using Sync, Raise[EventStorePort.Error]): Seq[Event] raises Error =
+      override def handle(id: Id, cmd: Command)(using
+          Sync,
+          Raise[EventStorePort.Error]
+      ): Seq[Event] raises Error =
         Seq.empty
     }
 }
