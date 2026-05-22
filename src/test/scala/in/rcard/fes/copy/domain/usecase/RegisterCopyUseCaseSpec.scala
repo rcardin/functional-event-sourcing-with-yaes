@@ -59,26 +59,24 @@ class RegisterCopyUseCaseSpec
 
     val actualResult = interceptRaised { underTest.registerCopy(ALREADY_REGISTERED_ISBN) }
 
-    actualResult shouldBe Error.AlreadyRegistered(COPY_ID)
+    actualResult shouldBe RegisterCopyError.AlreadyRegistered(COPY_ID)
   }
 
   it should "raise an error if the command handler returns an unexpected event" in withSync {
     val actualResult = interceptRaised { underTest.registerCopy(UNEXPECTED_ISBN) }
 
-    actualResult shouldBe Error.UnexpectedError("Unexpected state after copy registration")
+    actualResult shouldBe RegisterCopyError.UnexpectedError("Unexpected state after copy registration")
   }
 
-  it should "raise an error if the ISBN is not found in the catalog" in withSync {
+  it should "raise CopyNotFoundInCatalog if the ISBN is not found in the catalog" in withSync {
     val actualResult = interceptRaised { underTest.registerCopy(NOT_IN_CATALOG_ISBN) }
 
-    actualResult shouldBe Error.UnexpectedError(
-      s"ISBN not found in catalog: ${NOT_IN_CATALOG_ISBN.value}"
-    )
+    actualResult shouldBe RegisterCopyError.CopyNotFoundInCatalog(NOT_IN_CATALOG_ISBN)
   }
 
   it should "raise an error if there is an unexpected error from the catalog" in withSync {
     val actualResult = interceptRaised { underTest.registerCopy(CATALOG_ERROR_ISBN) }
 
-    actualResult shouldBe Error.UnexpectedError("Catalog error")
+    actualResult shouldBe RegisterCopyError.UnexpectedError("Catalog error")
   }
 }

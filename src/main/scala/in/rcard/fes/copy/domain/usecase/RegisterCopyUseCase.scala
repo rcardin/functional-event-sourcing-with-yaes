@@ -10,7 +10,7 @@ import in.rcard.yaes.Random
 import in.rcard.yaes.Sync
 
 trait RegisterCopyUseCase {
-  def registerCopy(isbn: ISBN)(using Random, Sync): CopyId raises Error
+  def registerCopy(isbn: ISBN)(using Random, Sync): CopyId raises RegisterCopyError
 }
 object RegisterCopyUseCase {
 
@@ -20,18 +20,18 @@ object RegisterCopyUseCase {
       findCopyByIsbnPort: FindCopyByIsbnPort
   ): RegisterCopyUseCase = new RegisterCopyUseCase {
 
-    def findCopyFromCatalog(isbn: ISBN)(using Sync): CopyToRegister raises Error = {
+    def findCopyFromCatalog(isbn: ISBN)(using Sync): CopyToRegister raises RegisterCopyError = {
       Raise.recover {
         findCopyByIsbnPort.find(isbn)
       } {
         case FindCopyByIsbnPort.Error.NotFound(isbn) =>
-          Raise.raise(Error.UnexpectedError(s"ISBN not found in catalog: ${isbn.value}"))
+          Raise.raise(RegisterCopyError.CopyNotFoundInCatalog(isbn))
         case FindCopyByIsbnPort.Error.UnexpectedError(msg) =>
-          Raise.raise(Error.UnexpectedError(msg))
+          Raise.raise(RegisterCopyError.UnexpectedError(msg))
       }
     }
 
-    override def registerCopy(isbn: ISBN)(using Random, Sync): CopyId raises Error = {
+    override def registerCopy(isbn: ISBN)(using Random, Sync): CopyId raises RegisterCopyError = {
       val catalogCopy = findCopyFromCatalog(isbn)
       val newCopyId   = copyIdGenerator.generate()
       val cmd         = Command.Register(
@@ -41,16 +41,23 @@ object RegisterCopyUseCase {
         catalogCopy.authors
       )
       val events = Raise.recover[EventStorePort.Error, Seq[Event]] {
-        commandHandler.handle(newCopyId, cmd)
+        Raise.recover[Error, Seq[Event]] {
+          commandHandler.handle(newCopyId, cmd)
+        } {
+          case Error.AlreadyRegistered(id) =>
+            Raise.raise(RegisterCopyError.AlreadyRegistered(id))
+          case Error.UnexpectedError(msg) =>
+            Raise.raise(RegisterCopyError.UnexpectedError(msg))
+        }
       } {
         case EventStorePort.Error.VersionConflict(id) =>
-          Raise.raise(Error.UnexpectedError(s"Version conflict for copy: $id"))
+          Raise.raise(RegisterCopyError.UnexpectedError(s"Version conflict for copy: $id"))
         case EventStorePort.Error.UnexpectedError(msg) =>
-          Raise.raise(Error.UnexpectedError(msg))
+          Raise.raise(RegisterCopyError.UnexpectedError(msg))
       }
       events match {
         case Event.Registered(copyId, _, _, _) :: Nil => copyId
-        case _ => Raise.raise(Error.UnexpectedError("Unexpected state after copy registration"))
+        case _ => Raise.raise(RegisterCopyError.UnexpectedError("Unexpected state after copy registration"))
       }
     }
   }

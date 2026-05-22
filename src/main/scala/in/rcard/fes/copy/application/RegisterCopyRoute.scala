@@ -6,8 +6,7 @@ import in.rcard.fes.copy.application.Routes.ProblemDetailsDTO
 import in.rcard.fes.copy.application.Routes.ProblemDetailsDTO.ErrorDTO
 import in.rcard.fes.copy.application.constraint.ISBN13
 import in.rcard.fes.copy.domain.Domain.ISBN
-import in.rcard.fes.copy.domain.Error
-import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase
+import in.rcard.fes.copy.domain.usecase.{RegisterCopyError, RegisterCopyUseCase}
 import in.rcard.yaes.Raise
 import in.rcard.yaes.http.circe.given
 import in.rcard.yaes.http.core.BodyEncoder
@@ -40,9 +39,9 @@ object RegisterCopyRoute {
 
   def apply(registerCopyUseCase: RegisterCopyUseCase): RegisterCopyRoute = new RegisterCopyRoute {
 
-    private def handlingDomainErrors(error: Error): Response = {
+    private def handlingDomainErrors(error: RegisterCopyError): Response = {
       error match
-        case Error.AlreadyRegistered(copyId) =>
+        case RegisterCopyError.AlreadyRegistered(copyId) =>
           Response.withStatus(
             status = 409,
             value = ProblemDetailsDTO(
@@ -56,7 +55,19 @@ object RegisterCopyRoute {
             ),
             extraHeaders = Map(Headers.ContentType -> "application/json")
           )
-        case Error.UnexpectedError(_) =>
+        case RegisterCopyError.CopyNotFoundInCatalog(isbn) =>
+          Response.badRequest[ProblemDetailsDTO](
+            ProblemDetailsDTO(
+              title = "Not Found",
+              detail = "The requested ISBN was not found in the catalog.",
+              errors = Seq(
+                ErrorDTO(
+                  detail = s"ISBN '${isbn.value}' not found in the catalog."
+                )
+              )
+            )
+          )
+        case RegisterCopyError.UnexpectedError(_) =>
           Response.internalServerError(
             ProblemDetailsDTO(
               title = "Unexpected error",
@@ -69,6 +80,7 @@ object RegisterCopyRoute {
             )
           )
     }
+
     private def handlingDecodingErrors(error: DecodingError): Response = error match {
 
       case ParseError(message, cause) =>
@@ -105,10 +117,10 @@ object RegisterCopyRoute {
           // FIXME The Created response should return the location of the created resource.
           //       Moreover we should have a ctor with the body and another one without it.
           Response.created[String]("Ok")
-        } { (error: Error | DecodingError) =>
+        } { (error: RegisterCopyError | DecodingError) =>
           error match {
-            case decodingError: DecodingError => handlingDecodingErrors(decodingError)
-            case error: Error                 => handlingDomainErrors(error)
+            case decodingError: DecodingError      => handlingDecodingErrors(decodingError)
+            case error: RegisterCopyError          => handlingDomainErrors(error)
           }
         }
     }
