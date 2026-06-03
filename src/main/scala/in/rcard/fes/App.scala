@@ -60,15 +60,16 @@ class App extends YaesApp {
     )
   }
 
-  private def makePool(dbConfig: DbConfig): HikariDataSource = {
+  private def makePool(dbConfig: DbConfig)(using Resource): HikariDataSource = {
     val config = new HikariConfig()
     config.setJdbcUrl(s"jdbc:postgresql://${dbConfig.host}:${dbConfig.port}/${dbConfig.database}")
     config.setUsername(dbConfig.user)
     config.setPassword(dbConfig.password)
-    new HikariDataSource(config)
+    Resource.acquire(new HikariDataSource(config))
   }
 
   private def runMigrations(pool: HikariDataSource): Unit = {
+    // FIXME: Handle migration errors properly instead of just throwing exceptions
     Flyway.configure().dataSource(pool).load().migrate()
     ()
   }
