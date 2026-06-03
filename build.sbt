@@ -18,6 +18,13 @@ lazy val dependencies =
     val yaesSlf4j         = "in.rcard.yaes"         %% "yaes-slf4j"       % yaesVersion
     val yaesHttpClient    = "in.rcard.yaes"         %% "yaes-http-client" % yaesVersion
     val yaesCoreScalatest = "in.rcard.yaes" %% "yaes-core-test-scalatest" % yaesVersion
+    val postgresVersion   = "42.7.4"
+    val postgres          = "org.postgresql"        %  "postgresql"                    % postgresVersion
+    val hikariVersion     = "5.1.0"
+    val hikari            = "com.zaxxer"            %  "HikariCP"                      % hikariVersion
+    val flywayVersion     = "10.15.0"
+    val flywayCore        = "org.flywaydb"          %  "flyway-core"                   % flywayVersion
+    val flywayPostgres    = "org.flywaydb"          %  "flyway-database-postgresql"    % flywayVersion
   }
 
 lazy val root = (project in file("."))
@@ -39,6 +46,10 @@ lazy val root = (project in file("."))
       dependencies.ironCirce,
       dependencies.pureConfig,
       dependencies.ironPureConfig,
+      dependencies.postgres,
+      dependencies.hikari,
+      dependencies.flywayCore,
+      dependencies.flywayPostgres,
       dependencies.scalatest         % Test,
       dependencies.yaesCoreScalatest % Test
     ),

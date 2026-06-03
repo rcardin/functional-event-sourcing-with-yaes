@@ -8,31 +8,33 @@ object Domain {
   }
 
   extension (copyState: CopyState) {
-    def isRegistered(id: CopyId): Boolean = copyState.exists { case Event.Registered(id, _, _, _) => true }
+    def isRegistered(id: CopyId): Boolean = copyState.exists { case Event.Registered(id, _, _, _) =>
+      true
+    }
   }
 
   // FIXME Insert the validations?
   opaque type CopyId = String
   object CopyId {
-    def apply(id: String): CopyId = id
+    def apply(id: String): CopyId                = id
+    extension (copyId: CopyId) def value: String = copyId
   }
 
   opaque type ISBN = String
   object ISBN {
-    def apply(isbn: String): ISBN = isbn
-
-    extension (isbn: ISBN) {
-      def value: String = isbn
-    }
+    def apply(isbn: String): ISBN            = isbn
+    extension (isbn: ISBN) def value: String = isbn
   }
 
   opaque type Title = String
   object Title {
-    def apply(title: String): Title = title
+    def apply(title: String): Title            = title
+    extension (title: Title) def value: String = title
   }
-  
+
   opaque type Author = String
   object Author {
-    def apply(author: String): Author = author
+    def apply(author: String): Author            = author
+    extension (author: Author) def value: String = author
   }
 }

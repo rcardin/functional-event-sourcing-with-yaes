@@ -1,12 +1,20 @@
 package in.rcard.fes.copy
 
-import in.rcard.fes.{CommandHandler, Decider, EventStorePort}
+import in.rcard.fes.CommandHandler
+import in.rcard.fes.Decider
+import in.rcard.fes.EventStorePort
 import in.rcard.fes.copy.Fixtures.*
-import in.rcard.fes.copy.domain.{Command, Error, Event}
-import in.rcard.fes.copy.domain.Domain.{CopyId, CopyState}
-import in.rcard.fes.copy.domain.CopyDecider
+import in.rcard.fes.copy.domain.Command
+import in.rcard.fes.copy.domain.Domain.CopyId
+import in.rcard.fes.copy.domain.Domain.CopyState
+import in.rcard.fes.copy.domain.Error
+import in.rcard.fes.copy.domain.Event
+import in.rcard.fes.copy.domain.usecase.CopyDecider
+import in.rcard.fes.copy.infrastructure.CopyPostgresEventStore.copyIdValuable
 import in.rcard.fes.utils.SyncSpec
-import in.rcard.yaes.{Raise, Sync, raises}
+import in.rcard.yaes.Raise
+import in.rcard.yaes.Sync
+import in.rcard.yaes.raises
 import in.rcard.yaes.test.scalatest.RaiseSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -18,15 +26,20 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
 
     def savedEvents(id: CopyId): Seq[Event] = store.get(id).map(_._2).getOrElse(Seq.empty)
 
-    override def load(id: CopyId)(using Sync): EventStorePort.EventStream[Event] raises EventStorePort.Error =
+    override def load(
+        id: CopyId
+    )(using Sync): EventStorePort.EventStream[Event] raises EventStorePort.Error =
       store.get(id) match {
         case Some((version, events)) => EventStorePort.EventStream(version, events)
         case None                    => EventStorePort.EventStream(0, Seq.empty)
       }
 
-    override def save(id: CopyId, expectedVersion: Long, events: Seq[Event])(using Sync): Unit raises EventStorePort.Error = {
+    override def save(id: CopyId, expectedVersion: Long, events: Seq[Event])(using
+        Sync
+    ): Unit raises EventStorePort.Error = {
       val currentVersion = store.get(id).map(_._1).getOrElse(0L)
-      if currentVersion != expectedVersion then Raise.raise(EventStorePort.Error.VersionConflict(id))
+      if currentVersion != expectedVersion then
+        Raise.raise(EventStorePort.Error.VersionConflict(id))
       else
         val existing = store.get(id).map(_._2).getOrElse(Seq.empty)
         store = store.updated(id, (expectedVersion + events.size, existing ++ events))
@@ -35,7 +48,8 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
 
   private val decider = CopyDecider()
 
-  private val registerCmd = Command.Register(COPY_ID, FOUNDATION_ISBN, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR))
+  private val registerCmd =
+    Command.Register(COPY_ID, FOUNDATION_ISBN, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR))
 
   "CommandHandler.apply" should "return the new event when handling a command for a new aggregate" in withSync {
     val store   = InMemoryEventStore()
@@ -47,7 +61,9 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
       } { err => fail(s"EventStore raised unexpected error: $err") }
     }
 
-    result shouldBe Seq(Event.Registered(COPY_ID, FOUNDATION_ISBN, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR)))
+    result shouldBe Seq(
+      Event.Registered(COPY_ID, FOUNDATION_ISBN, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR))
+    )
   }
 
   it should "reconstruct state from existing events and raise AlreadyRegistered for duplicate" in withSync {
@@ -93,10 +109,14 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
 
   it should "retry on VersionConflict and succeed on second attempt" in withSync {
     var saveCallCount = 0
-    val retryStore = new EventStorePort[CopyId, Event] {
-      override def load(id: CopyId)(using Sync): EventStorePort.EventStream[Event] raises EventStorePort.Error =
+    val retryStore    = new EventStorePort[CopyId, Event] {
+      override def load(id: CopyId)(using
+          Sync
+      ): EventStorePort.EventStream[Event] raises EventStorePort.Error =
         EventStorePort.EventStream(0, Seq.empty)
-      override def save(id: CopyId, expectedVersion: Long, events: Seq[Event])(using Sync): Unit raises EventStorePort.Error = {
+      override def save(id: CopyId, expectedVersion: Long, events: Seq[Event])(using
+          Sync
+      ): Unit raises EventStorePort.Error = {
         saveCallCount += 1
         if saveCallCount == 1 then Raise.raise(EventStorePort.Error.VersionConflict(id))
       }
@@ -109,7 +129,9 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
       } { err => fail(s"EventStore raised unexpected error: $err") }
     }
 
-    result shouldBe Seq(Event.Registered(COPY_ID, FOUNDATION_ISBN, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR)))
+    result shouldBe Seq(
+      Event.Registered(COPY_ID, FOUNDATION_ISBN, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR))
+    )
     saveCallCount shouldBe 2
   }
 
@@ -118,7 +140,7 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
       override def decide(command: Command, state: CopyState): Seq[Event] raises Error =
         Seq(Event.Registered(COPY_ID, FOUNDATION_ISBN, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR)))
       override def evolve(state: CopyState, event: Event): CopyState = state :+ event
-      override val initialState: CopyState                            = CopyState.empty
+      override val initialState: CopyState                           = CopyState.empty
       override def isTerminal(state: CopyState): Boolean             = true
     }
     val store   = InMemoryEventStore()
@@ -136,9 +158,13 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
 
   it should "propagate UnexpectedError when load raises it" in withSync {
     val brokenStore = new EventStorePort[CopyId, Event] {
-      override def load(id: CopyId)(using Sync): EventStorePort.EventStream[Event] raises EventStorePort.Error =
+      override def load(id: CopyId)(using
+          Sync
+      ): EventStorePort.EventStream[Event] raises EventStorePort.Error =
         Raise.raise(EventStorePort.Error.UnexpectedError("storage unavailable"))
-      override def save(id: CopyId, expectedVersion: Long, events: Seq[Event])(using Sync): Unit raises EventStorePort.Error =
+      override def save(id: CopyId, expectedVersion: Long, events: Seq[Event])(using
+          Sync
+      ): Unit raises EventStorePort.Error =
         ()
     }
     val handler = CommandHandler.apply(decider, brokenStore)

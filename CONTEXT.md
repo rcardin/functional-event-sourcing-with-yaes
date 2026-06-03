@@ -19,6 +19,11 @@ The domain models a simplified book library system where patrons borrow and retu
 - A **process manager** coordinates the borrow flow across both aggregates (Copy + Patron).
 - Returns are handled by **event-driven choreography**: a reactor on `BookReturned` emits a command to the Patron.
 
+### Key Concepts
+
+- **Event Store** — the append-only log of domain events, keyed by aggregate identity. Supports `load` (replay all events for an aggregate) and `save` (append new events with optimistic concurrency via a version number). Defined by `EventStorePort[Id, Event]`.
+- **Version** — a monotonically increasing sequence number per aggregate stream. Used for optimistic locking: a `save` fails with `VersionConflict` if another writer has already appended at the same position.
+
 ---
 
 ## Architectural Conventions

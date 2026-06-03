@@ -1,7 +1,8 @@
-package in.rcard.fes.copy.domain
+package in.rcard.fes.copy.domain.usecase
 
 import in.rcard.fes.Decider
 import in.rcard.fes.copy.domain.Domain.{CopyState, isRegistered}
+import in.rcard.fes.copy.domain.{Command, Event, Error}
 import in.rcard.fes.copy.domain.Event.Registered
 import in.rcard.yaes.{Raise, raises}
 
@@ -23,4 +24,8 @@ class CopyDecider extends Decider[Command, Event, CopyState, Error] {
   override val initialState: CopyState = CopyState.empty
 
   override def isTerminal(state: CopyState): Boolean = false
+}
+
+object CopyDecider {
+  given live: CopyDecider = new CopyDecider
 }

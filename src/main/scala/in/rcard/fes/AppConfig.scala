@@ -12,11 +12,20 @@ import cats.data.Validated.Valid
 
 case class AppConfig(
     port: Int,
-    isbnClient: IsbnClientConfig
+    isbnClient: IsbnClientConfig,
+    db: AppConfig.DbConfig
 ) derives ConfigReader
 object AppConfig {
   // FIXME Check with a proper test
   case class IsbnClientConfig(host: Uri, apiKey: String :| Not[Empty]) derives ConfigReader
+
+  case class DbConfig(
+      host: String,
+      port: Int,
+      database: String,
+      user: String,
+      password: String
+  ) derives ConfigReader
 
   given uriReader: ConfigReader[Uri] = ConfigReader.fromCursor[Uri] { cur =>
     cur.asString.flatMap { str =>

@@ -1,8 +1,11 @@
 package in.rcard.fes
 
-import in.rcard.fes.AppConfig.IsbnClientConfig
+import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
+import in.rcard.fes.AppConfig.{DbConfig, IsbnClientConfig}
 import in.rcard.fes.copy.application.RegisterCopyRoute
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort
+import in.rcard.fes.copy.domain.usecase.CopyCommandHandler.live
+import in.rcard.fes.copy.infrastructure.CopyPostgresEventStore.live
 import in.rcard.fes.copy.infrastructure.FindCopyByIsbnRepository.live
 import in.rcard.yaes.http.client.{Uri, YaesClient}
 import in.rcard.yaes.http.server.{ServerDef, YaesServer}
@@ -21,6 +24,7 @@ import in.rcard.yaes.{
   System,
   YaesApp
 }
+import org.flywaydb.core.Flyway
 import pureconfig.*
 
 class App extends YaesApp {
@@ -47,10 +51,26 @@ class App extends YaesApp {
 
     given client: YaesClient                 = YaesClient.make()
     given isbnClientConfig: IsbnClientConfig = appConfig.isbnClient
+    given pool: HikariDataSource             = makePool(appConfig.db)
+
+    runMigrations(pool)
 
     YaesServer.route(
       summon[RegisterCopyRoute].registerCopyRoute
     )
+  }
+
+  private def makePool(dbConfig: DbConfig): HikariDataSource = {
+    val config = new HikariConfig()
+    config.setJdbcUrl(s"jdbc:postgresql://${dbConfig.host}:${dbConfig.port}/${dbConfig.database}")
+    config.setUsername(dbConfig.user)
+    config.setPassword(dbConfig.password)
+    new HikariDataSource(config)
+  }
+
+  private def runMigrations(pool: HikariDataSource): Unit = {
+    Flyway.configure().dataSource(pool).load().migrate()
+    ()
   }
 
 }

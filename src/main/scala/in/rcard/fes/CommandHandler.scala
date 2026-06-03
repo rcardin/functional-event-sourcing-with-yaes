@@ -35,14 +35,4 @@ object CommandHandler {
         attempt()
       }
     }
-
-  // TODO: replace with real DI wiring once EventStorePort is implemented
-  given [Id, Command, Error, Event]: CommandHandler[Id, Command, Error, Event] =
-    new CommandHandler[Id, Command, Error, Event] {
-      override def handle(id: Id, cmd: Command)(using
-          Sync,
-          Raise[EventStorePort.Error]
-      ): Seq[Event] raises Error =
-        Seq.empty
-    }
 }
