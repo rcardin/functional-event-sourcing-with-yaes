@@ -48,17 +48,20 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
 
   private val decider = CopyDecider()
 
+  private val liftStoreError: EventStorePort.Error => Error = {
+    case EventStorePort.Error.UnexpectedError(msg) => Error.UnexpectedError(msg)
+    case EventStorePort.Error.VersionConflict(id)  => Error.UnexpectedError(s"Version conflict for copy: $id")
+  }
+
   private val registerCmd =
     Command.Register(COPY_ID, FOUNDATION_ISBN, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR))
 
   "CommandHandler.apply" should "return the new event when handling a command for a new aggregate" in withSync {
     val store   = InMemoryEventStore()
-    val handler = CommandHandler.apply(decider, store)
+    val underTest = CommandHandler.apply(decider, store, liftStoreError)
 
     val result = failOnRaise[Error, Seq[Event]] {
-      Raise.recover {
-        handler.handle(COPY_ID, registerCmd)
-      } { err => fail(s"EventStore raised unexpected error: $err") }
+      underTest.handle(COPY_ID, registerCmd)
     }
 
     result shouldBe Seq(
@@ -68,18 +71,14 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
 
   it should "reconstruct state from existing events and raise AlreadyRegistered for duplicate" in withSync {
     val store   = InMemoryEventStore()
-    val handler = CommandHandler.apply(decider, store)
+    val underTest = CommandHandler.apply(decider, store, liftStoreError)
 
     failOnRaise[Error, Seq[Event]] {
-      Raise.recover[EventStorePort.Error, Seq[Event]] {
-        handler.handle(COPY_ID, registerCmd)
-      } { err => fail(s"EventStore error on first registration: $err") }
+      underTest.handle(COPY_ID, registerCmd)
     }
 
     val error = interceptRaised[Error, Seq[Event]] {
-      Raise.recover[EventStorePort.Error, Seq[Event]] {
-        handler.handle(COPY_ID, registerCmd)
-      } { err => fail(s"EventStore error on second registration: $err") }
+      underTest.handle(COPY_ID, registerCmd)
     }
 
     error shouldBe Error.AlreadyRegistered(COPY_ID)
@@ -87,18 +86,14 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
 
   it should "propagate domain Error from decider without saving events" in withSync {
     val store   = InMemoryEventStore()
-    val handler = CommandHandler.apply(decider, store)
+    val underTest = CommandHandler.apply(decider, store, liftStoreError)
 
     failOnRaise[Error, Seq[Event]] {
-      Raise.recover[EventStorePort.Error, Seq[Event]] {
-        handler.handle(COPY_ID, registerCmd)
-      } { err => fail(s"EventStore error: $err") }
+      underTest.handle(COPY_ID, registerCmd)
     }
 
     val error = interceptRaised[Error, Seq[Event]] {
-      Raise.recover[EventStorePort.Error, Seq[Event]] {
-        handler.handle(COPY_ID, registerCmd)
-      } { err => fail(s"EventStore error: $err") }
+      underTest.handle(COPY_ID, registerCmd)
     }
 
     error shouldBe Error.AlreadyRegistered(COPY_ID)
@@ -121,12 +116,10 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
         if saveCallCount == 1 then Raise.raise(EventStorePort.Error.VersionConflict(id))
       }
     }
-    val handler = CommandHandler.apply(decider, retryStore)
+    val underTest = CommandHandler.apply(decider, retryStore, liftStoreError)
 
     val result = failOnRaise[Error, Seq[Event]] {
-      Raise.recover[EventStorePort.Error, Seq[Event]] {
-        handler.handle(COPY_ID, registerCmd)
-      } { err => fail(s"EventStore raised unexpected error: $err") }
+      underTest.handle(COPY_ID, registerCmd)
     }
 
     result shouldBe Seq(
@@ -144,12 +137,10 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
       override def isTerminal(state: CopyState): Boolean             = true
     }
     val store   = InMemoryEventStore()
-    val handler = CommandHandler.apply(terminalDecider, store)
+    val underTest = CommandHandler.apply(terminalDecider, store, liftStoreError)
 
     val result = failOnRaise[Error, Seq[Event]] {
-      Raise.recover[EventStorePort.Error, Seq[Event]] {
-        handler.handle(COPY_ID, registerCmd)
-      } { err => fail(s"EventStore raised unexpected error: $err") }
+      underTest.handle(COPY_ID, registerCmd)
     }
 
     result shouldBe Seq.empty
@@ -167,14 +158,12 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
       ): Unit raises EventStorePort.Error =
         ()
     }
-    val handler = CommandHandler.apply(decider, brokenStore)
+    val underTest = CommandHandler.apply(decider, brokenStore, liftStoreError)
 
-    val error = interceptRaised[EventStorePort.Error, Seq[Event]] {
-      failOnRaise[Error, Seq[Event]] {
-        handler.handle(COPY_ID, registerCmd)
-      }
+    val error = interceptRaised[Error, Seq[Event]] {
+      underTest.handle(COPY_ID, registerCmd)
     }
 
-    error shouldBe EventStorePort.Error.UnexpectedError("storage unavailable")
+    error shouldBe Error.UnexpectedError("storage unavailable")
   }
 }
