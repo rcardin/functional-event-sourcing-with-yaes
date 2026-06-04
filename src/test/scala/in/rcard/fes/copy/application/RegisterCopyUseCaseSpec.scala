@@ -1,6 +1,6 @@
-package in.rcard.fes.copy.domain.usecase
+package in.rcard.fes.copy.application
 
-import in.rcard.fes.CommandHandler
+import in.rcard.fes.eventsourcing.CommandHandler
 import in.rcard.fes.copy.Fixtures.*
 import in.rcard.fes.copy.domain.Command
 import in.rcard.fes.copy.domain.Domain.CopyId

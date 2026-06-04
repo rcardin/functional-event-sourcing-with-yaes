@@ -1,4 +1,4 @@
-package in.rcard.fes
+package in.rcard.fes.eventsourcing
 
 import com.zaxxer.hikari.HikariDataSource
 import in.rcard.yaes.Raise
@@ -7,7 +7,7 @@ import in.rcard.yaes.Sync
 import in.rcard.yaes.raises
 import io.circe.{Decoder, Encoder, parser}
 import org.postgresql.util.PSQLException
-import in.rcard.fes.EventStorePort.Valuable
+import in.rcard.fes.eventsourcing.EventStorePort.Valuable
 
 
 class PostgresJdbcEventStore[Id: Valuable, Event: Encoder: Decoder](
@@ -78,7 +78,7 @@ class PostgresJdbcEventStore[Id: Valuable, Event: Encoder: Decoder](
         stmt.executeBatch()
       }
     } {
-      // 23505 is a magic number. Use a constant to represent it.
+      // 23505 is the PostgreSQL unique violation error code
       case e: PSQLException if e.getSQLState == "23505" => EventStorePort.Error.VersionConflict(id)
       case e                                            => EventStorePort.Error.UnexpectedError(e.getMessage)
     }

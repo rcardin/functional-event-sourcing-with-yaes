@@ -1,9 +1,11 @@
-package in.rcard.fes.copy.domain.usecase
+package in.rcard.fes.copy.application
 
-import in.rcard.fes.CommandHandler
-import in.rcard.fes.EventStorePort
-import in.rcard.fes.copy.domain.Domain.{CopyId}
+import in.rcard.fes.eventsourcing.CommandHandler
+import in.rcard.fes.eventsourcing.EventStorePort
+import in.rcard.fes.copy.domain.CopyDecider
+import in.rcard.fes.copy.domain.Domain.CopyId
 import in.rcard.fes.copy.domain.{Command, Error, Event}
+
 object CopyCommandHandler {
 
   given live(using

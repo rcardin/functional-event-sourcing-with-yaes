@@ -1,6 +1,5 @@
-package in.rcard.fes.copy.application.constraint
+package in.rcard.fes.copy.adapter.constraint
 
-import in.rcard.fes.copy.application.constraint.ISBN13
 import io.github.iltotore.iron.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

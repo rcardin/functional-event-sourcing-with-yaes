@@ -2,9 +2,8 @@ package in.rcard.fes
 
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import in.rcard.fes.AppConfig.{DbConfig, IsbnClientConfig}
-import in.rcard.fes.copy.application.RegisterCopyRoute
-import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort
-import in.rcard.fes.copy.domain.usecase.CopyCommandHandler.live
+import in.rcard.fes.copy.adapter.RegisterCopyRoute
+import in.rcard.fes.copy.application.CopyCommandHandler.live
 import in.rcard.fes.copy.infrastructure.CopyPostgresEventStore.live
 import in.rcard.fes.copy.infrastructure.FindCopyByIsbnRepository.live
 import in.rcard.yaes.http.client.{Uri, YaesClient}

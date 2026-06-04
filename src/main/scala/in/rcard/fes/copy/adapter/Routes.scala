@@ -1,6 +1,6 @@
-package in.rcard.fes.copy.application
+package in.rcard.fes.copy.adapter
 
-import in.rcard.fes.copy.application.Routes.ProblemDetailsDTO.ErrorDTO
+import in.rcard.fes.copy.adapter.Routes.ProblemDetailsDTO.ErrorDTO
 import in.rcard.yaes.http.server.params.path.NoParams
 import in.rcard.yaes.http.server.params.query.NoQueryParams
 import in.rcard.yaes.http.server.routing.Route

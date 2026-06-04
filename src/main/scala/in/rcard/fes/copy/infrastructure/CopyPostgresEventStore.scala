@@ -2,10 +2,10 @@ package in.rcard.fes.copy.infrastructure
 
 import cats.Show
 import com.zaxxer.hikari.HikariDataSource
-import in.rcard.fes.CommandHandler
-import in.rcard.fes.EventStorePort
-import in.rcard.fes.EventStorePort.Valuable
-import in.rcard.fes.PostgresJdbcEventStore
+import in.rcard.fes.eventsourcing.CommandHandler
+import in.rcard.fes.eventsourcing.EventStorePort
+import in.rcard.fes.eventsourcing.EventStorePort.Valuable
+import in.rcard.fes.eventsourcing.PostgresJdbcEventStore
 import in.rcard.fes.copy.domain.Command
 import in.rcard.fes.copy.domain.Domain.Author
 import in.rcard.fes.copy.domain.Domain.CopyId

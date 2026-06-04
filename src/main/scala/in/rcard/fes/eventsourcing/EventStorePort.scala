@@ -1,7 +1,7 @@
-package in.rcard.fes
+package in.rcard.fes.eventsourcing
 
 import in.rcard.yaes.{Sync, raises}
-import in.rcard.fes.EventStorePort.Valuable
+import in.rcard.fes.eventsourcing.EventStorePort.Valuable
 
 trait EventStorePort[Id: Valuable, Event] {
   def load(id: Id)(using Sync): EventStorePort.EventStream[Event] raises EventStorePort.Error

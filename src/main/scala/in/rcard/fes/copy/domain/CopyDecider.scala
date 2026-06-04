@@ -1,8 +1,7 @@
-package in.rcard.fes.copy.domain.usecase
+package in.rcard.fes.copy.domain
 
-import in.rcard.fes.Decider
+import in.rcard.fes.eventsourcing.Decider
 import in.rcard.fes.copy.domain.Domain.{CopyState, isRegistered}
-import in.rcard.fes.copy.domain.{Command, Event, Error}
 import in.rcard.fes.copy.domain.Event.Registered
 import in.rcard.yaes.{Raise, raises}
 

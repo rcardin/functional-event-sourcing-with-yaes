@@ -7,7 +7,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.language.postfixOps
 import in.rcard.yaes.test.scalatest.RaiseSpec
-import in.rcard.fes.copy.domain.usecase.CopyDecider
+import in.rcard.fes.copy.domain.CopyDecider
 
 private val COPY_ID   = CopyId("copy1")
 private val COPY_ISBN = ISBN("isbn1")

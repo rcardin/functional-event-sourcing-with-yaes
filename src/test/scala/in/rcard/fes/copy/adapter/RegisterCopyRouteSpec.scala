@@ -1,9 +1,8 @@
-package in.rcard.fes.copy.application
+package in.rcard.fes.copy.adapter
 
 import in.rcard.fes.copy.Fixtures.*
+import in.rcard.fes.copy.application.{RegisterCopyError, RegisterCopyUseCase}
 import in.rcard.fes.copy.domain.Domain.*
-import in.rcard.fes.copy.domain.usecase.RegisterCopyError
-import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase
 import in.rcard.yaes.Raise
 import in.rcard.yaes.Random
 import in.rcard.yaes.Sync

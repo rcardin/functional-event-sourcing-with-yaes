@@ -1,12 +1,12 @@
-package in.rcard.fes.copy.application
+package in.rcard.fes.copy.adapter
 
 import scala.language.implicitConversions
-import in.rcard.fes.copy.application.RegisterCopyRoute.RegisterCopyDTO
-import in.rcard.fes.copy.application.Routes.ProblemDetailsDTO
-import in.rcard.fes.copy.application.Routes.ProblemDetailsDTO.ErrorDTO
-import in.rcard.fes.copy.application.constraint.ISBN13
+import in.rcard.fes.copy.adapter.RegisterCopyRoute.RegisterCopyDTO
+import in.rcard.fes.copy.adapter.Routes.ProblemDetailsDTO
+import in.rcard.fes.copy.adapter.Routes.ProblemDetailsDTO.ErrorDTO
+import in.rcard.fes.copy.adapter.constraint.ISBN13
+import in.rcard.fes.copy.application.{RegisterCopyError, RegisterCopyUseCase}
 import in.rcard.fes.copy.domain.Domain.ISBN
-import in.rcard.fes.copy.domain.usecase.{RegisterCopyError, RegisterCopyUseCase}
 import in.rcard.yaes.Raise
 import in.rcard.yaes.http.circe.given
 import in.rcard.yaes.http.core.BodyEncoder

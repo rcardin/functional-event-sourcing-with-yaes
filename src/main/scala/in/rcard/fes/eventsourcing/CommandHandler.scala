@@ -1,4 +1,4 @@
-package in.rcard.fes
+package in.rcard.fes.eventsourcing
 
 import in.rcard.yaes.Raise
 import in.rcard.yaes.Sync
