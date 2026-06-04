@@ -1,17 +1,24 @@
 package in.rcard.fes.copy.domain.usecase
 
-import in.rcard.fes.{CommandHandler, EventStorePort}
+import in.rcard.fes.CommandHandler
+import in.rcard.fes.EventStorePort
 import in.rcard.fes.copy.Fixtures.*
-import in.rcard.fes.copy.domain.Domain.{CopyId, ISBN}
-import in.rcard.fes.copy.domain.{Command, Error, Event}
+import in.rcard.fes.copy.domain.Command
+import in.rcard.fes.copy.domain.Domain.CopyId
+import in.rcard.fes.copy.domain.Domain.ISBN
+import in.rcard.fes.copy.domain.Error
+import in.rcard.fes.copy.domain.Event
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort.CopyToRegister
-import in.rcard.fes.utils.{RandomSpec, SyncSpec}
-import in.rcard.yaes.{Raise, Random, raises}
+import in.rcard.yaes.Raise
+import in.rcard.yaes.Random
+import in.rcard.yaes.Sync
+import in.rcard.yaes.raises
+import in.rcard.yaes.test.scalatest.RaiseSpec
+import in.rcard.yaes.test.scalatest.RandomSpec
+import in.rcard.yaes.test.scalatest.SyncSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import in.rcard.yaes.Sync
-import in.rcard.yaes.test.scalatest.RaiseSpec
 
 class RegisterCopyUseCaseSpec
     extends AnyFlatSpec
@@ -24,7 +31,10 @@ class RegisterCopyUseCaseSpec
   }
   val mockCommandHandler: CommandHandler[CopyId, Command, Error, Event] =
     new CommandHandler[CopyId, Command, Error, Event] {
-      override def handle(id: CopyId, cmd: Command)(using Sync, Raise[EventStorePort.Error]): Seq[Event] raises Error = cmd match {
+      override def handle(id: CopyId, cmd: Command)(using
+          Sync,
+          Raise[EventStorePort.Error]
+      ): Seq[Event] raises Error = cmd match {
         case Command.Register(copyId, isbn, title, authors) if isbn == ALREADY_REGISTERED_ISBN =>
           Raise.raise(Error.AlreadyRegistered(copyId))
         case Command.Register(copyId, isbn, title, authors) if isbn == FOUNDATION_ISBN =>
@@ -55,7 +65,7 @@ class RegisterCopyUseCaseSpec
 
   it should "not register a copy if it is already registered" in withSync {
 
-    RandomStub.nextInts(1, 2, 3)
+    rand.nextInts(1, 2, 3)
 
     val actualResult = interceptRaised { underTest.registerCopy(ALREADY_REGISTERED_ISBN) }
 
@@ -65,7 +75,9 @@ class RegisterCopyUseCaseSpec
   it should "raise an error if the command handler returns an unexpected event" in withSync {
     val actualResult = interceptRaised { underTest.registerCopy(UNEXPECTED_ISBN) }
 
-    actualResult shouldBe RegisterCopyError.UnexpectedError("Unexpected state after copy registration")
+    actualResult shouldBe RegisterCopyError.UnexpectedError(
+      "Unexpected state after copy registration"
+    )
   }
 
   it should "raise CopyNotFoundInCatalog if the ISBN is not found in the catalog" in withSync {

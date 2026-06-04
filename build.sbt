@@ -11,13 +11,14 @@ lazy val dependencies =
     val pureConfigVersion = "0.17.10"
     val pureConfig        = "com.github.pureconfig" %% "pureconfig-core"  % pureConfigVersion
     val ironPureConfig    = "io.github.iltotore"    %% "iron-pureconfig"  % ironVersion
-    val yaesVersion       = "0.19.0"
+    val yaesVersion       = "0.20.0"
     val yaesCore          = "in.rcard.yaes"         %% "yaes-core"        % yaesVersion
     val yaesHttpServer    = "in.rcard.yaes"         %% "yaes-http-server" % yaesVersion
     val yaesHttpCirce     = "in.rcard.yaes"         %% "yaes-http-circe"  % yaesVersion
     val yaesSlf4j         = "in.rcard.yaes"         %% "yaes-slf4j"       % yaesVersion
     val yaesHttpClient    = "in.rcard.yaes"         %% "yaes-http-client" % yaesVersion
     val yaesCoreScalatest = "in.rcard.yaes" %% "yaes-core-test-scalatest" % yaesVersion
+    val yaesHttpScalatest = "in.rcard.yaes" %% "yaes-http-test-scalatest" % yaesVersion
     val postgresVersion   = "42.7.4"
     val postgres          = "org.postgresql"        %  "postgresql"                    % postgresVersion
     val hikariVersion     = "5.1.0"
@@ -51,7 +52,8 @@ lazy val root = (project in file("."))
       dependencies.flywayCore,
       dependencies.flywayPostgres,
       dependencies.scalatest         % Test,
-      dependencies.yaesCoreScalatest % Test
+      dependencies.yaesCoreScalatest % Test,
+      dependencies.yaesHttpScalatest % Test
     ),
     Test / logBuffered       := false,
     Test / parallelExecution := false,

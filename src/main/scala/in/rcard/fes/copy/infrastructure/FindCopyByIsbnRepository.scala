@@ -1,14 +1,13 @@
 package in.rcard.fes.copy.infrastructure
 
-import scala.language.implicitConversions
 import in.rcard.fes.AppConfig.IsbnClientConfig
 import in.rcard.fes.copy.domain.Domain.Author
 import in.rcard.fes.copy.domain.Domain.ISBN
 import in.rcard.fes.copy.domain.Domain.Title
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort
-import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort.Error
 import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort.CopyToRegister
-import in.rcard.fes.util.UriOps.*
+import in.rcard.fes.copy.domain.port.FindCopyByIsbnPort.Error
+import in.rcard.yaes.Log
 import in.rcard.yaes.Raise
 import in.rcard.yaes.Sync
 import in.rcard.yaes.http.circe.given
@@ -24,7 +23,8 @@ import in.rcard.yaes.http.client.as
 import in.rcard.yaes.http.core.Headers
 import in.rcard.yaes.raises
 import io.circe.Decoder
-import in.rcard.yaes.Log
+
+import scala.language.implicitConversions
 
 object FindCopyByIsbnRepository {
 

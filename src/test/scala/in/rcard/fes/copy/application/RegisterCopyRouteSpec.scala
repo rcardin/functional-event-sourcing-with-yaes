@@ -2,24 +2,31 @@ package in.rcard.fes.copy.application
 
 import in.rcard.fes.copy.Fixtures.*
 import in.rcard.fes.copy.domain.Domain.*
-import in.rcard.fes.copy.domain.usecase.{RegisterCopyError, RegisterCopyUseCase}
-import in.rcard.fes.utils.{RandomSpec, SyncSpec}
+import in.rcard.fes.copy.domain.usecase.RegisterCopyError
+import in.rcard.fes.copy.domain.usecase.RegisterCopyUseCase
+import in.rcard.yaes.Raise
+import in.rcard.yaes.Random
+import in.rcard.yaes.Sync
 import in.rcard.yaes.http.core.Method.POST
-import in.rcard.yaes.http.server.{Request, Routes as YaesRoutes}
-import in.rcard.yaes.{Raise, Random, raises}
+import in.rcard.yaes.http.server.Request
+import in.rcard.yaes.http.server.Routes as YaesRoutes
+import in.rcard.yaes.raises
+import in.rcard.yaes.test.scalatest.RandomSpec
+import in.rcard.yaes.test.scalatest.SyncSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import in.rcard.yaes.Sync
 
 private val REGISTER_COPY_REQUEST_JSON = s"""{"isbn": "$FOUNDATION_ISBN_VALUE"}"""
 
-private val REGISTER_ALREADY_REGISTERED_COPY_REQUEST_JSON = s"""{"isbn": "$ALREADY_REGISTERED_ISBN_VALUE"}"""
+private val REGISTER_ALREADY_REGISTERED_COPY_REQUEST_JSON =
+  s"""{"isbn": "$ALREADY_REGISTERED_ISBN_VALUE"}"""
 
 private val REGISTER_COPY_INVALID_ISBN_REQUEST_JSON = """{"isbn": "not-valid"}"""
 
 private val REGISTER_COPY_UNEXPECTED_ERROR_REQUEST_JSON = s"""{"isbn": "$UNEXPECTED_ISBN_VALUE"}"""
 
-private val REGISTER_COPY_NOT_IN_CATALOG_REQUEST_JSON = s"""{"isbn": "$NOT_IN_CATALOG_ISBN_VALUE"}"""
+private val REGISTER_COPY_NOT_IN_CATALOG_REQUEST_JSON =
+  s"""{"isbn": "$NOT_IN_CATALOG_ISBN_VALUE"}"""
 
 private val REGISTER_COPY_PARSING_ERROR_RESPONSE_JSON =
   """{"title":"Invalid request body","detail":"The request body could not be parsed. Please check the syntax.","errors":[{"detail":"expected null got 'not_va...' (line 1, column 1)"}]}"""
@@ -39,19 +46,22 @@ private val REGISTER_COPY_NOT_IN_CATALOG_RESPONSE_JSON =
 class RegisterCopyRouteSpec extends AnyFlatSpec with SyncSpec with RandomSpec with Matchers {
 
   private val mockedRegisterCopyUseCase = new RegisterCopyUseCase {
-    override def registerCopy(isbn: ISBN)(using Random, Sync): CopyId raises RegisterCopyError = isbn match {
-      case ALREADY_REGISTERED_ISBN =>
-        Raise.raise(RegisterCopyError.AlreadyRegistered(COPY_ID))
-      case UNEXPECTED_ISBN =>
-        Raise.raise(RegisterCopyError.UnexpectedError("Unexpected error"))
-      case NOT_IN_CATALOG_ISBN =>
-        Raise.raise(RegisterCopyError.CopyNotFoundInCatalog(NOT_IN_CATALOG_ISBN))
-      case FOUNDATION_ISBN =>
-        COPY_ID
-    }
+    override def registerCopy(isbn: ISBN)(using Random, Sync): CopyId raises RegisterCopyError =
+      isbn match {
+        case ALREADY_REGISTERED_ISBN =>
+          Raise.raise(RegisterCopyError.AlreadyRegistered(COPY_ID))
+        case UNEXPECTED_ISBN =>
+          Raise.raise(RegisterCopyError.UnexpectedError("Unexpected error"))
+        case NOT_IN_CATALOG_ISBN =>
+          Raise.raise(RegisterCopyError.CopyNotFoundInCatalog(NOT_IN_CATALOG_ISBN))
+        case FOUNDATION_ISBN =>
+          COPY_ID
+      }
   }
 
-  private val underTest: Sync ?=> YaesRoutes = YaesRoutes(RegisterCopyRoute(mockedRegisterCopyUseCase).registerCopyRoute)
+  private val underTest: Sync ?=> YaesRoutes = YaesRoutes(
+    RegisterCopyRoute(mockedRegisterCopyUseCase).registerCopyRoute
+  )
 
   "RegisterCopyRoute" should "return 201 if the copy is registered successfully" in withSync {
 

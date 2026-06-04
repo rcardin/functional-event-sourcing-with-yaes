@@ -11,11 +11,11 @@ import in.rcard.fes.copy.domain.Error
 import in.rcard.fes.copy.domain.Event
 import in.rcard.fes.copy.domain.usecase.CopyDecider
 import in.rcard.fes.copy.infrastructure.CopyPostgresEventStore.copyIdValuable
-import in.rcard.fes.utils.SyncSpec
 import in.rcard.yaes.Raise
 import in.rcard.yaes.Sync
 import in.rcard.yaes.raises
 import in.rcard.yaes.test.scalatest.RaiseSpec
+import in.rcard.yaes.test.scalatest.SyncSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
