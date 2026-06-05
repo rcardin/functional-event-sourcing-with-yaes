@@ -59,7 +59,7 @@ class FindCopyByIsbnRepositorySpec
     IsbnClientConfig(host, API_KEY)
   }
   val underTest: Resource ?=> FindCopyByIsbnPort =
-    FindCopyByIsbnRepository(YaesClient.make(), clientConfig)
+    FindCopyByIsbnRepository(LiveIsbnDBClient(YaesClient.make(), clientConfig))
 
   "FindCopyByIsbnRepository" should "return correct CopyToRegister and send correct request on HTTP 200" in withSync {
     Resource.run {
@@ -119,8 +119,7 @@ class FindCopyByIsbnRepositorySpec
 
     val error =
       Resource.run {
-        val client = YaesClient.make()
-        val repo   = FindCopyByIsbnRepository(client, refusedConfig)
+        val repo = FindCopyByIsbnRepository(LiveIsbnDBClient(YaesClient.make(), refusedConfig))
         interceptRaised(repo.find(FOUNDATION_ISBN))
       }
 
