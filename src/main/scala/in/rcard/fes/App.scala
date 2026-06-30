@@ -2,6 +2,7 @@ package in.rcard.fes
 
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import in.rcard.fes.AppConfig.{DbConfig, IsbnClientConfig}
+import in.rcard.fes.copy.adapter.MarkCopyAsLostRoute
 import in.rcard.fes.copy.adapter.RegisterCopyRoute
 import in.rcard.fes.copy.application.CopyCommandHandler.live
 import in.rcard.fes.copy.infrastructure.CopyPostgresEventStore.live
@@ -55,7 +56,8 @@ class App extends YaesApp {
     runMigrations(pool)
 
     YaesServer.route(
-      summon[RegisterCopyRoute].registerCopyRoute
+      summon[RegisterCopyRoute].registerCopyRoute,
+      summon[MarkCopyAsLostRoute].markCopyAsLostRoute
     )
   }
 

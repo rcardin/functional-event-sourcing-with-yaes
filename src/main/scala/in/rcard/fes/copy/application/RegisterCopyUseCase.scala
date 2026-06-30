@@ -45,6 +45,8 @@ object RegisterCopyUseCase {
       } {
         case Error.AlreadyRegistered(id) =>
           Raise.raise(RegisterCopyError.AlreadyRegistered(id))
+        case Error.CopyNotFound(_) | Error.AlreadyLost(_) =>
+          Raise.raise(RegisterCopyError.UnexpectedError("Unexpected state after copy registration"))
         case Error.UnexpectedError(msg) =>
           Raise.raise(RegisterCopyError.UnexpectedError(msg))
       }

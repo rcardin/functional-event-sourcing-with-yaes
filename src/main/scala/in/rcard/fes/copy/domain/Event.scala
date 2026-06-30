@@ -6,4 +6,5 @@ import io.circe.generic.semiauto.*
 
 private[copy] enum Event {
   case Registered(id: CopyId, isbn: ISBN, title: Title, authors: Seq[Author])
+  case MarkedAsLost(id: CopyId)
 }

@@ -8,8 +8,14 @@ object Domain {
   }
 
   extension (copyState: CopyState) {
-    def isRegistered(id: CopyId): Boolean = copyState.exists { case Event.Registered(id, _, _, _) =>
-      true
+    def isRegistered(id: CopyId): Boolean = copyState.exists {
+      case Event.Registered(_, _, _, _) => true
+      case _                            => false
+    }
+
+    def isLost(id: CopyId): Boolean = copyState.exists {
+      case Event.MarkedAsLost(_) => true
+      case _                     => false
     }
   }
 

@@ -49,6 +49,45 @@ class CopyDeciderSpec extends AnyFlatSpec with RaiseSpec with Matchers {
     actualResult shouldBe Error.AlreadyRegistered(COPY_ID)
   }
 
+  "CopyDecider.decide" should "mark a registered available copy as lost" in {
+    val command = Command.MarkAsLost(COPY_ID)
+    val state   = CopyState.empty :+ Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR))
+
+    val actualResult = failOnRaise { underTest.decide(command, state) }
+
+    actualResult should contain only Event.MarkedAsLost(COPY_ID)
+  }
+
+  it should "make the copy state lost after applying the MarkedAsLost event" in {
+    val command = Command.MarkAsLost(COPY_ID)
+    val state   = CopyState.empty :+ Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR))
+
+    val events       = failOnRaise { underTest.decide(command, state) }
+    val updatedState = events.foldLeft(state)(underTest.evolve)
+
+    updatedState.isLost(COPY_ID) shouldBe true
+  }
+
+  it should "not mark a copy as lost if it was never registered" in {
+    val command = Command.MarkAsLost(COPY_ID)
+    val state   = CopyState.empty
+
+    val actualResult = interceptRaised { underTest.decide(command, state) }
+
+    actualResult shouldBe Error.CopyNotFound(COPY_ID)
+  }
+
+  it should "not mark a copy as lost if it is already lost" in {
+    val command = Command.MarkAsLost(COPY_ID)
+    val state   = CopyState.empty :+
+      Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR)) :+
+      Event.MarkedAsLost(COPY_ID)
+
+    val actualResult = interceptRaised { underTest.decide(command, state) }
+
+    actualResult shouldBe Error.AlreadyLost(COPY_ID)
+  }
+
   "CopyDecider.evolve" should "add the event to the state" in {
     val state = CopyState.empty
 
