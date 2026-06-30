@@ -6,8 +6,10 @@ import in.rcard.yaes.Resource
 import in.rcard.yaes.Sync
 import in.rcard.yaes.raises
 import io.circe.{Decoder, Encoder, parser}
-import org.postgresql.util.PSQLException
 import in.rcard.fes.eventsourcing.EventStorePort.Valuable
+
+import java.sql.SQLException
+import scala.annotation.tailrec
 
 
 class PostgresJdbcEventStore[Id: Valuable, Event: Encoder: Decoder](
@@ -78,9 +80,20 @@ class PostgresJdbcEventStore[Id: Valuable, Event: Encoder: Decoder](
         stmt.executeBatch()
       }
     } {
-      // 23505 is the PostgreSQL unique violation error code
-      case e: PSQLException if e.getSQLState == "23505" => EventStorePort.Error.VersionConflict(id)
-      case e                                            => EventStorePort.Error.UnexpectedError(e.getMessage)
+      // executeBatch wraps the failure in a BatchUpdateException whose chained
+      // exceptions carry the real SQLState, so the whole chain must be inspected.
+      case e: SQLException if isUniqueViolation(e) => EventStorePort.Error.VersionConflict(id)
+      case e                                       => EventStorePort.Error.UnexpectedError(e.getMessage)
     }
   }
+
+  // 23505 is the PostgreSQL unique violation error code.
+  @tailrec
+  private def isUniqueViolation(e: SQLException): Boolean =
+    if e.getSQLState == "23505" then true
+    else
+      e.getNextException match {
+        case null => false
+        case next => isUniqueViolation(next)
+      }
 }

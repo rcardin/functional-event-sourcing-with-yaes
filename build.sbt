@@ -26,6 +26,11 @@ lazy val dependencies =
     val flywayVersion     = "10.15.0"
     val flywayCore        = "org.flywaydb"          %  "flyway-core"                   % flywayVersion
     val flywayPostgres    = "org.flywaydb"          %  "flyway-database-postgresql"    % flywayVersion
+    val testcontainersVersion   = "0.44.1"
+    val testcontainersScalatest =
+      "com.dimafeng" %% "testcontainers-scala-scalatest"  % testcontainersVersion
+    val testcontainersPostgres  =
+      "com.dimafeng" %% "testcontainers-scala-postgresql" % testcontainersVersion
   }
 
 lazy val root = (project in file("."))
@@ -51,9 +56,11 @@ lazy val root = (project in file("."))
       dependencies.hikari,
       dependencies.flywayCore,
       dependencies.flywayPostgres,
-      dependencies.scalatest         % Test,
-      dependencies.yaesCoreScalatest % Test,
-      dependencies.yaesHttpScalatest % Test
+      dependencies.scalatest             % Test,
+      dependencies.yaesCoreScalatest     % Test,
+      dependencies.yaesHttpScalatest     % Test,
+      dependencies.testcontainersScalatest % Test,
+      dependencies.testcontainersPostgres  % Test
     ),
     Test / logBuffered       := false,
     Test / parallelExecution := false,
