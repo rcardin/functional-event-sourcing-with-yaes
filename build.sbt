@@ -33,7 +33,15 @@ lazy val dependencies =
       "com.dimafeng" %% "testcontainers-scala-postgresql" % testcontainersVersion
   }
 
+// Custom "it" (integration-test) sbt config. sbt's built-in IntegrationTest config was
+// deprecated in sbt 1.9 (repo is on 1.12.9), so we define our own. `extend Test` gives it the
+// full Test classpath (testcontainers, scalatest, the domain code) with no extra dependency
+// wiring. src/it/scala holds the Docker-dependent Testcontainers tests; `sbt test` never
+// touches them (fast, Docker-free tier), `sbt It/test` runs only them (real PG tier).
+lazy val It = config("it") extend Test
+
 lazy val root = (project in file("."))
+  .configs(It)
   .settings(
     name         := "functional-event-sourcing-with-yaes",
     organization := "in.rcard.fes",
@@ -65,5 +73,10 @@ lazy val root = (project in file("."))
     Test / logBuffered       := false,
     Test / parallelExecution := false,
     Test / fork              := true,
-    Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oDF")
+    Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oDF"),
+    // The It config mirrors Test's fork + serial execution (container startup is not parallel-safe).
+    inConfig(It)(Defaults.testSettings),
+    It / fork              := true,
+    It / parallelExecution := false,
+    It / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oDF")
   )
