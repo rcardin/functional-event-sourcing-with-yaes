@@ -1,11 +1,9 @@
-package in.rcard.fes.copy.domain
+package in.rcard.fes.copy.application
 
-import Domain.CopyId
+import in.rcard.fes.copy.domain.Domain.CopyId
 
-enum Error {
-  case AlreadyRegistered(id: CopyId)
+enum MarkCopyAsDamagedError {
   case CopyNotFound(id: CopyId)
-  case AlreadyLost(id: CopyId)
   case AlreadyDamaged(id: CopyId)
   case CopyIsLost(id: CopyId)
   case UnexpectedError(message: String)
