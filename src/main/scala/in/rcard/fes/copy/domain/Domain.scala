@@ -9,13 +9,13 @@ object Domain {
 
   extension (copyState: CopyState) {
     def isRegistered(id: CopyId): Boolean = copyState.exists {
-      case Event.Registered(_, _, _, _) => true
-      case _                            => false
+      case Event.Registered(_id, _, _, _) => _id == id
+      case _                              => false
     }
 
     def isLost(id: CopyId): Boolean = copyState.exists {
-      case Event.MarkedAsLost(_) => true
-      case _                     => false
+      case Event.MarkedAsLost(_id) => _id == id
+      case _                       => false
     }
   }
 
