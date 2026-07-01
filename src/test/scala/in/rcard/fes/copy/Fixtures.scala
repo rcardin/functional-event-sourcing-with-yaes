@@ -4,7 +4,17 @@ import in.rcard.fes.copy.domain.Domain
 import in.rcard.fes.copy.domain.Domain.CopyId
 
 object Fixtures {
-  private[copy] val COPY_ID = CopyId("copy1")
+  private[copy] val COPY_ID_VALUE = "copy1"
+  private[copy] val COPY_ID        = CopyId(COPY_ID_VALUE)
+
+  private[copy] val NOT_REGISTERED_COPY_ID_VALUE = "not-registered-copy"
+  private[copy] val NOT_REGISTERED_COPY_ID        = CopyId(NOT_REGISTERED_COPY_ID_VALUE)
+
+  private[copy] val ALREADY_LOST_COPY_ID_VALUE = "already-lost-copy"
+  private[copy] val ALREADY_LOST_COPY_ID        = CopyId(ALREADY_LOST_COPY_ID_VALUE)
+
+  private[copy] val UNEXPECTED_COPY_ID_VALUE = "unexpected-copy"
+  private[copy] val UNEXPECTED_COPY_ID        = CopyId(UNEXPECTED_COPY_ID_VALUE)
 
   private[copy] val FOUNDATION_ISBN_VALUE   = "978-3-954-76392-4"
   private[copy] val FOUNDATION_TITLE_VALUE  = "Foundation"
