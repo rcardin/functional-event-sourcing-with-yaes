@@ -31,7 +31,7 @@ object MarkCopyAsDamagedUseCase {
           Raise.raise(MarkCopyAsDamagedError.UnexpectedError(msg))
       }
       events match {
-        case Event.MarkedAsDamaged(_) :: Nil => ()
+        case Seq(Event.MarkedAsDamaged(_)) => ()
         case _ =>
           Raise.raise(MarkCopyAsDamagedError.UnexpectedError("Unexpected state after marking a copy as damaged"))
       }
