@@ -17,6 +17,11 @@ object Domain {
       case Event.MarkedAsLost(_id) => _id == id
       case _                       => false
     }
+
+    def isDamaged(id: CopyId): Boolean = copyState.exists {
+      case Event.MarkedAsDamaged(_id) => _id == id
+      case _                          => false
+    }
   }
 
   // FIXME Insert the validations?
