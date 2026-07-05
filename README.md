@@ -17,10 +17,10 @@ A **process manager** coordinates the borrow flow across both aggregates. Return
 ## User Stories
 
 ### 1. Catalog management (Librarian)
-- **US-1** — *Register a copy.* As a librarian, I want to register a new physical copy of a book (with its title/ISBN metadata) so that it becomes available for patrons to borrow.
-- **US-2** — *Mark a copy as lost.* As a librarian, I want to mark a copy as lost so that it can no longer be borrowed and the catalog reflects reality.
-- **US-3** — *Mark a copy as damaged.* As a librarian, I want to mark a copy as damaged so that it's withdrawn from circulation pending repair.
-- **US-4** — *Repair a damaged copy.* As a librarian, I want to return a damaged copy to circulation once repaired so that it can be borrowed again.
+- ✅ **US-1** — *Register a copy.* As a librarian, I want to register a new physical copy of a book (with its title/ISBN metadata) so that it becomes available for patrons to borrow.
+- ✅ **US-2** — *Mark a copy as lost.* As a librarian, I want to mark a copy as lost so that it can no longer be borrowed and the catalog reflects reality.
+- ✅ **US-3** — *Mark a copy as damaged.* As a librarian, I want to mark a copy as damaged so that it's withdrawn from circulation pending repair.
+- 🚧 **US-4** — *Repair a damaged copy.* As a librarian, I want to return a damaged copy to circulation once repaired so that it can be borrowed again.
 - **US-5** — *Remove a copy.* As a librarian, I want to permanently remove a copy from the catalog so that retired or destroyed copies are no longer tracked as active inventory.
 
 **Invariants:** a copy can only be borrowed if `Available`; you can't repair a copy that isn't `Damaged`; you can't remove a copy that's currently `Borrowed`.
