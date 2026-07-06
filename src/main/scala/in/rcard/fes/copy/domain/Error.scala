@@ -8,5 +8,6 @@ enum Error {
   case AlreadyLost(id: CopyId)
   case AlreadyDamaged(id: CopyId)
   case CopyIsLost(id: CopyId)
+  case NotDamaged(id: CopyId)
   case UnexpectedError(message: String)
 }
