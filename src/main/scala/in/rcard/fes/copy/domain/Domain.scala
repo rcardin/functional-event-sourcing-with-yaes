@@ -7,21 +7,26 @@ object Domain {
     val empty: CopyState = Seq.empty
   }
 
+  enum Status {
+    case NotRegistered, Available, Lost, Damaged
+  }
+
   extension (copyState: CopyState) {
-    def isRegistered(id: CopyId): Boolean = copyState.exists {
-      case Event.Registered(_id, _, _, _) => _id == id
-      case _                              => false
-    }
+    def currentStatus(id: CopyId): Status =
+      copyState.foldLeft(Status.NotRegistered) { (status, event) =>
+        event match {
+          case Event.Registered(_id, _, _, _) if _id == id => Status.Available
+          case Event.MarkedAsLost(_id) if _id == id        => Status.Lost
+          case Event.MarkedAsDamaged(_id) if _id == id     => Status.Damaged
+          case _                                           => status
+        }
+      }
 
-    def isLost(id: CopyId): Boolean = copyState.exists {
-      case Event.MarkedAsLost(_id) => _id == id
-      case _                       => false
-    }
+    def isRegistered(id: CopyId): Boolean = copyState.currentStatus(id) != Status.NotRegistered
 
-    def isDamaged(id: CopyId): Boolean = copyState.exists {
-      case Event.MarkedAsDamaged(_id) => _id == id
-      case _                          => false
-    }
+    def isLost(id: CopyId): Boolean = copyState.currentStatus(id) == Status.Lost
+
+    def isDamaged(id: CopyId): Boolean = copyState.currentStatus(id) == Status.Damaged
   }
 
   // FIXME Insert the validations?
