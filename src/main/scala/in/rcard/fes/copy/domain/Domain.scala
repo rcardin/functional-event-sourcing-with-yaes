@@ -13,14 +13,13 @@ object Domain {
 
   extension (copyState: CopyState) {
     def currentStatus(id: CopyId): Status =
-      copyState.foldLeft(Status.NotRegistered) { (status, event) =>
-        event match {
-          case Event.Registered(_id, _, _, _) if _id == id => Status.Available
-          case Event.MarkedAsLost(_id) if _id == id        => Status.Lost
-          case Event.MarkedAsDamaged(_id) if _id == id     => Status.Damaged
-          case _                                           => status
+      copyState.reverseIterator
+        .collectFirst {
+          case Event.Registered(`id`, _, _, _) => Status.Available
+          case Event.MarkedAsLost(`id`)        => Status.Lost
+          case Event.MarkedAsDamaged(`id`)     => Status.Damaged
         }
-      }
+        .getOrElse(Status.NotRegistered)
 
     def isRegistered(id: CopyId): Boolean = copyState.currentStatus(id) != Status.NotRegistered
 
