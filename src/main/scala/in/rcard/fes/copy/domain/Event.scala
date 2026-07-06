@@ -8,4 +8,5 @@ private[copy] enum Event {
   case Registered(id: CopyId, isbn: ISBN, title: Title, authors: Seq[Author])
   case MarkedAsLost(id: CopyId)
   case MarkedAsDamaged(id: CopyId)
+  case Repaired(id: CopyId)
 }

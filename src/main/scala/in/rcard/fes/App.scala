@@ -5,6 +5,7 @@ import in.rcard.fes.AppConfig.{DbConfig, IsbnClientConfig}
 import in.rcard.fes.copy.adapter.MarkCopyAsDamagedRoute
 import in.rcard.fes.copy.adapter.MarkCopyAsLostRoute
 import in.rcard.fes.copy.adapter.RegisterCopyRoute
+import in.rcard.fes.copy.adapter.RepairCopyRoute
 import in.rcard.fes.copy.application.CopyCommandHandler.live
 import in.rcard.fes.copy.infrastructure.CopyPostgresEventStore.live
 import in.rcard.fes.copy.infrastructure.FindCopyByIsbnRepository.live
@@ -59,7 +60,8 @@ class App extends YaesApp {
     YaesServer.route(
       summon[RegisterCopyRoute].registerCopyRoute,
       summon[MarkCopyAsLostRoute].markCopyAsLostRoute,
-      summon[MarkCopyAsDamagedRoute].markCopyAsDamagedRoute
+      summon[MarkCopyAsDamagedRoute].markCopyAsDamagedRoute,
+      summon[RepairCopyRoute].repairCopyRoute
     )
   }
 

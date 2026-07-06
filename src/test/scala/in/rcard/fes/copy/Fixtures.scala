@@ -16,6 +16,9 @@ object Fixtures {
   private[copy] val ALREADY_DAMAGED_COPY_ID_VALUE = "already-damaged-copy"
   private[copy] val ALREADY_DAMAGED_COPY_ID        = CopyId(ALREADY_DAMAGED_COPY_ID_VALUE)
 
+  private[copy] val NOT_DAMAGED_COPY_ID_VALUE = "not-damaged-copy"
+  private[copy] val NOT_DAMAGED_COPY_ID        = CopyId(NOT_DAMAGED_COPY_ID_VALUE)
+
   private[copy] val UNEXPECTED_COPY_ID_VALUE = "unexpected-copy"
   private[copy] val UNEXPECTED_COPY_ID        = CopyId(UNEXPECTED_COPY_ID_VALUE)
 

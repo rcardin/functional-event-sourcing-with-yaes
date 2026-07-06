@@ -18,6 +18,7 @@ object Domain {
           case Event.Registered(`id`, _, _, _) => Status.Available
           case Event.MarkedAsLost(`id`)        => Status.Lost
           case Event.MarkedAsDamaged(`id`)     => Status.Damaged
+          case Event.Repaired(`id`)            => Status.Available
         }
         .getOrElse(Status.NotRegistered)
 

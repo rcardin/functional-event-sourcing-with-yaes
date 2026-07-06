@@ -138,6 +138,59 @@ class CopyDeciderSpec extends AnyFlatSpec with RaiseSpec with Matchers {
     actualResult shouldBe Error.CopyIsLost(COPY_ID)
   }
 
+  "CopyDecider.decide" should "repair a damaged copy" in {
+    val command = Command.Repair(COPY_ID)
+    val state   = CopyState.empty :+
+      Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR)) :+
+      Event.MarkedAsDamaged(COPY_ID)
+
+    val actualResult = failOnRaise { underTest.decide(command, state) }
+
+    actualResult should contain only Event.Repaired(COPY_ID)
+  }
+
+  it should "make the copy state available again after applying the Repaired event" in {
+    val command = Command.Repair(COPY_ID)
+    val state   = CopyState.empty :+
+      Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR)) :+
+      Event.MarkedAsDamaged(COPY_ID)
+
+    val events       = failOnRaise { underTest.decide(command, state) }
+    val updatedState = events.foldLeft(state)(underTest.evolve)
+
+    updatedState.isDamaged(COPY_ID) shouldBe false
+    updatedState.currentStatus(COPY_ID) shouldBe Status.Available
+  }
+
+  it should "not repair a copy if it was never registered" in {
+    val command = Command.Repair(COPY_ID)
+    val state   = CopyState.empty
+
+    val actualResult = interceptRaised { underTest.decide(command, state) }
+
+    actualResult shouldBe Error.CopyNotFound(COPY_ID)
+  }
+
+  it should "not repair a copy if it is available (not damaged)" in {
+    val command = Command.Repair(COPY_ID)
+    val state   = CopyState.empty :+ Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR))
+
+    val actualResult = interceptRaised { underTest.decide(command, state) }
+
+    actualResult shouldBe Error.NotDamaged(COPY_ID)
+  }
+
+  it should "not repair a copy if it is lost (not damaged)" in {
+    val command = Command.Repair(COPY_ID)
+    val state   = CopyState.empty :+
+      Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR)) :+
+      Event.MarkedAsLost(COPY_ID)
+
+    val actualResult = interceptRaised { underTest.decide(command, state) }
+
+    actualResult shouldBe Error.NotDamaged(COPY_ID)
+  }
+
   "CopyDecider.evolve" should "add the event to the state" in {
     val state = CopyState.empty
 
