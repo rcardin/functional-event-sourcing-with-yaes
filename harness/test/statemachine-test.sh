@@ -122,6 +122,8 @@ export IT_GATE_CMD=false   # must never be reached: fast-RED short-circuits the 
 export IMPL_CMD='printf "object Slice\n" > src/main/scala/Slice.scala'
 export FIX_CMD='printf "// touch %s\n" "$RANDOM" >> src/main/scala/Slice.scala'
 export REVIEW_CMD='echo "VERDICT: APPROVE"'   # never reached (fast gate always RED)
+NOTIFY_LOG="$SB/notify-c.log"; : >"$NOTIFY_LOG"
+export NOTIFY_CMD='printf "%s\n" "$msg" >> '"$NOTIFY_LOG"
 run_loop
 # Driver treats needs-human (iterate rc=40) as a handled outcome and continues the loop, so
 # the SCRIPT exits 0; the FAIL path is proven by needs-human + PR + 2 fixes below.
@@ -134,7 +136,9 @@ check "no fourth pass" "" "$(ls "$WORK/harness/logs" | grep pass4 || true)"
 check "reviewer never ran (RED never renders a review prompt)" "" "$(ls "$WORK/harness/logs" | grep 'review.prompt.txt' || true)"
 checkc "issue -> needs-human" "issue edit 999 --add-label needs-human" "$GH_CALLS"
 checkc "PR still opened (audit trail)" "pr create" "$GH_CALLS"
-unset GATE_CMD IT_GATE_CMD IMPL_CMD FIX_CMD REVIEW_CMD
+checkc "notify fired on needs-human" "needs-human" "$NOTIFY_LOG"
+check  "notify fired exactly once"   "1" "$(wc -l < "$NOTIFY_LOG" | tr -d ' ')"
+unset GATE_CMD IT_GATE_CMD IMPL_CMD FIX_CMD REVIEW_CMD NOTIFY_CMD
 teardown
 
 echo "== Scenario D: forced IT-gate-RED -> exactly one fix from shared budget, re-gate green =="
@@ -277,6 +281,8 @@ export IT_GATE_CMD=false                               # must never be reached
 export IMPL_CMD='printf "object Slice\n" > src/main/scala/Slice.scala'
 export FIX_CMD='false'                                 # must never run (no budget spent)
 export REVIEW_CMD='echo "VERDICT: APPROVE"'            # must never run
+NOTIFY_LOG_I="$SB/notify-i.log"; : >"$NOTIFY_LOG_I"
+export NOTIFY_CMD='printf "%s\n" "$msg" >> '"$NOTIFY_LOG_I"
 run_loop
 check "exit code 50 (infra fault)" 50 "$RC"
 checkc "gate-timeout logged as infra fault" "infra fault, not a code failure" "$SB/loop.out"
@@ -284,7 +290,8 @@ check "zero FIX dispatches (no budget spent)" "0" "$(ls "$WORK/harness/logs" | g
 check "no PR created" "" "$(grep 'pr create' "$GH_CALLS" || true)"
 check "no needs-human label" "" "$(grep 'needs-human' "$GH_CALLS" || true)"
 check "IT gate never ran" "" "$(ls "$WORK/harness/logs" | grep 'it-gate.log' || true)"
-unset GATE_CMD IT_GATE_CMD IMPL_CMD FIX_CMD REVIEW_CMD
+checkc "notify fired on infra fault" "infra fault" "$NOTIFY_LOG_I"
+unset GATE_CMD IT_GATE_CMD IMPL_CMD FIX_CMD REVIEW_CMD NOTIFY_CMD
 teardown
 
 echo

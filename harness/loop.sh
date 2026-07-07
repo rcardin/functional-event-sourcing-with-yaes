@@ -49,6 +49,8 @@
 #          IMPL_CMD       stub for the worker dispatch       (default: real claude -p)
 #          FIX_CMD        stub for the fix dispatch          (default: real claude -p)
 #          REVIEW_CMD     stub for the reviewer dispatch     (default: real claude -p)
+#          NTFY_TOPIC     ntfy.sh topic for push notifications (unset = log-only)
+#          NOTIFY_CMD     test seam: eval'd with $msg in scope, replaces the ntfy call
 set -euo pipefail
 
 # --- locate repo root (script lives in harness/) ---------------------------------------
@@ -246,6 +248,22 @@ tamper_report() {
       printf '(no test files changed vs origin/main)\n'
     fi
   } >"$out"
+}
+
+# --- notify seam -------------------------------------------------------------------------
+# Fires on exactly three events: any needs-human terminal, any rc=50 infra-fault exit, and
+# each successful auto-merge (v4). NOTIFY_CMD (test seam) is eval'd with $msg in scope;
+# otherwise NTFY_TOPIC posts to ntfy.sh; otherwise log-only. A dead notification channel
+# must never change loop behavior: every failure is swallowed.
+notify() {
+  local msg="$1"
+  if [[ -n "${NOTIFY_CMD:-}" ]]; then
+    ( eval "$NOTIFY_CMD" ) || log "notify failed (ignored)"
+  elif [[ -n "${NTFY_TOPIC:-}" ]]; then
+    curl -s --max-time 10 -d "$msg" "https://ntfy.sh/${NTFY_TOPIC}" >/dev/null 2>&1 || log "notify failed (ignored)"
+  else
+    log "notify (no channel configured): $msg"
+  fi
 }
 
 # --- one US, start to terminal ---------------------------------------------------------
@@ -494,6 +512,10 @@ iterate() {
     pr_note="**Needs human** — self-repair budget of ${REPAIR_BUDGET} exhausted on ${failure_kind} (last gate ${gate_status}). Opened for the audit trail; do NOT merge without review."
   fi
 
+  if [[ "$label" == "needs-human" ]]; then
+    notify "harness: #${issue} needs-human (${failure_kind:-?}, gate ${gate_status})"
+  fi
+
   git commit --quiet -m "feat(US-${issue}): autonomous iteration — ${commit_tag}
 
 Refs #${issue}. Loop iteration ${n}, ${pass} gate pass(es). Outcome: ${outcome}.
@@ -536,7 +558,9 @@ for ((i = 1; i <= MAX_ITERS; i++)); do
     11) log "no actionable issue — idle, exiting"; exit 0;;
     20) log "dry run reached its stop point — exiting"; exit 0;;
     30) log "iteration $i produced nothing — exiting for inspection"; exit 1;;
-    50) log "infra fault — exiting for inspection (issue stays in-progress)"; exit 50;;
+    50) log "infra fault — exiting for inspection (issue stays in-progress)"
+        notify "harness: infra fault — loop exited rc=50 for inspection (issue stays in-progress)"
+        exit 50;;
     *)  log "iteration $i failed rc=$rc — exiting for inspection"; exit "$rc";;
   esac
 done
