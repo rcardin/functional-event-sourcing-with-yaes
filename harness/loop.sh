@@ -291,7 +291,8 @@ auto_merge() {
   if (( ci_rc != 0 )); then
     log "CI RED on PR #$pr_num after local gates green — needs-human, no merge, no self-repair"
     gh pr comment "$pr_num" --body "CI red after local gates were green. The loop never self-repairs against the independent check (v3 hands-off rule) — a human must look." >/dev/null 2>&1 || true
-    gh issue edit "$issue" --add-label needs-human --remove-label in-progress >/dev/null
+    gh issue edit "$issue" --add-label needs-human --remove-label in-progress >/dev/null 2>&1 \
+      || log "WARNING: could not flip #$issue to needs-human (flip by hand)"
     notify "harness: #${issue} CI RED -> needs-human (PR #${pr_num})"
     return 40
   fi
