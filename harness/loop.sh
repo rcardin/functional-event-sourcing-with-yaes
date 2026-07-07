@@ -51,6 +51,9 @@
 #          REVIEW_CMD     stub for the reviewer dispatch     (default: real claude -p)
 #          NTFY_TOPIC     ntfy.sh topic for push notifications (unset = log-only)
 #          NOTIFY_CMD     test seam: eval'd with $msg in scope, replaces the ntfy call
+#          CI_WAIT_TIMEOUT  bound on the required-CI wait, s   (default 900)
+#          CI_WAIT_CMD    test seam for the CI wait            (default: gh pr checks --watch)
+#          MERGE_CMD      test seam for the merge              (default: gh pr merge --squash)
 set -euo pipefail
 
 # --- locate repo root (script lives in harness/) ---------------------------------------
@@ -64,6 +67,7 @@ GATE_TIMEOUT="${GATE_TIMEOUT:-900}"    # per-fast-gate sbt compile+test budget, 
 IT_GATE_TIMEOUT="${IT_GATE_TIMEOUT:-1200}"  # per-IT-gate budget, seconds (Docker container startup)
 DRY_RUN="${DRY_RUN:-0}"
 REPAIR_BUDGET="${REPAIR_BUDGET:-2}"    # shared across gate-RED and REQUEST_CHANGES per US
+CI_WAIT_TIMEOUT="${CI_WAIT_TIMEOUT:-900}"   # bound on waiting for the required CI check, seconds
 ITERATE_PROMPT="$SCRIPT_DIR/iterate-prompt.md"
 FIX_PROMPT="$SCRIPT_DIR/fix-prompt.md"
 REVIEW_PROMPT="$SCRIPT_DIR/review-prompt.md"
@@ -82,6 +86,8 @@ IT_GATE_CMD="${IT_GATE_CMD:-sbt -batch -no-colors It/test}"
 IMPL_CMD="${IMPL_CMD:-}"
 FIX_CMD="${FIX_CMD:-}"
 REVIEW_CMD="${REVIEW_CMD:-}"
+CI_WAIT_CMD="${CI_WAIT_CMD:-}"   # test seam; default (empty) -> gh pr checks <pr> --watch --fail-fast
+MERGE_CMD="${MERGE_CMD:-}"       # test seam; default (empty) -> gh pr merge <pr> --squash --delete-branch
 
 log() { printf '[loop %s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 die() { log "FATAL: $*"; exit 1; }
@@ -266,6 +272,49 @@ notify() {
   fi
 }
 
+# --- v4 auto-merge (class-1 only) --------------------------------------------------------
+# Called only on outcome=SUCCESS for a class-1 issue, after the PR exists. Waits for the
+# required CI check bounded by CI_WAIT_TIMEOUT, then merges and VERIFIES the merge.
+# Returns: 0 merged (issue auto-closes via the PR's "Closes #N"), 40 CI red -> needs-human
+# (the loop never self-repairs against the independent check), 50 infra fault (timeout,
+# merge failure, or unverified merge — exit for inspection, issue stays in-progress).
+auto_merge() {
+  local issue="$1" branch="$2" pr_num="$3"
+  local ci_cmd="${CI_WAIT_CMD:-gh pr checks $pr_num --watch --fail-fast}"
+  local ci_log="$LOG_DIR/issue-${issue}.ci-wait.log"
+  local ci_rc=0
+  run_gate "CI-WAIT" "$ci_cmd" "$CI_WAIT_TIMEOUT" "$ci_log" || ci_rc=$?
+  if (( ci_rc == 124 )); then
+    log "CI wait hit the ${CI_WAIT_TIMEOUT}s bound — infra fault; PR open, issue stays in-progress"
+    return 50
+  fi
+  if (( ci_rc != 0 )); then
+    log "CI RED on PR #$pr_num after local gates green — needs-human, no merge, no self-repair"
+    gh pr comment "$pr_num" --body "CI red after local gates were green. The loop never self-repairs against the independent check (v3 hands-off rule) — a human must look." >/dev/null 2>&1 || true
+    gh issue edit "$issue" --add-label needs-human --remove-label in-progress >/dev/null
+    notify "harness: #${issue} CI RED -> needs-human (PR #${pr_num})"
+    return 40
+  fi
+  local merge_cmd="${MERGE_CMD:-gh pr merge $pr_num --squash --delete-branch}"
+  log "CI green — merging PR #$pr_num"
+  local merge_rc=0
+  $merge_cmd >>"$ci_log" 2>&1 || merge_rc=$?
+  if (( merge_rc != 0 )); then
+    log "merge command failed rc=$merge_rc — infra fault"
+    return 50
+  fi
+  local state
+  state="$(gh pr view "$pr_num" --json state --jq .state 2>/dev/null || true)"
+  if [[ "$state" != "MERGED" ]]; then
+    log "merge NOT verified (PR state '${state:-unknown}') — infra fault"
+    return 50
+  fi
+  gh issue edit "$issue" --remove-label in-progress >/dev/null 2>&1 || true
+  git fetch --quiet origin main || log "post-merge fetch failed (next iteration re-fetches anyway)"
+  notify "harness: #${issue} auto-merged (PR #${pr_num}, CI green, reviewer APPROVE)"
+  return 0
+}
+
 # --- one US, start to terminal ---------------------------------------------------------
 iterate() {
   local n="$1"
@@ -296,6 +345,11 @@ iterate() {
     --jq '"# " + (.title) + "\n\n" + .body' >"$body_file"
   worker_prompt_file="$LOG_DIR/issue-${issue}.prompt.txt"
   render_template "$ITERATE_PROMPT" "$worker_prompt_file" ISSUE "$body_file"
+
+  # v4: auto-merge is earned by class-1 only. Detect the class once, at pick time.
+  local issue_labels is_class1=0
+  issue_labels="$(gh issue view "$issue" --json labels --jq '[.labels[].name] | join(" ")')"
+  [[ " $issue_labels " == *" class-1 "* ]] && is_class1=1
 
   # Dry run stops here — before ANY git/label mutation, so it is truly read-only.
   if [[ "$DRY_RUN" == "1" ]]; then
@@ -498,10 +552,14 @@ iterate() {
   fi
 
   local label commit_tag pr_note
-  if [[ "$outcome" == "SUCCESS" ]]; then
+  if [[ "$outcome" == "SUCCESS" && "$is_class1" == "1" ]]; then
+    label=""   # no flip: the auto-merge path owns the issue's fate
+    commit_tag="reviewer APPROVE, gate ${gate_status}"
+    pr_note="**Reviewer: APPROVE** · gate ${gate_status} · class-1 — v4 auto-merge candidate: the loop merges after the required CI check goes green."
+  elif [[ "$outcome" == "SUCCESS" ]]; then
     label="needs-review"
     commit_tag="reviewer APPROVE, gate ${gate_status}"
-    pr_note="**Reviewer: APPROVE** · gate ${gate_status} (in-memory + real-PG IT tiers both green). The cold independent reviewer approved; a human still merges (v2 stops at PR)."
+    pr_note="**Reviewer: APPROVE** · gate ${gate_status} (in-memory + real-PG IT tiers both green). Not class-1, so not auto-merged: a human reviews and merges."
   elif [[ "$failure_kind" == "protected-path" ]]; then
     label="needs-human"
     commit_tag="protected-path violation, gate ${gate_status}"
@@ -534,15 +592,29 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
       cat "$review_file"
       printf '\n```\n\n</details>\n\n'
     fi
-    printf 'v2 stops at PR: no CI, no auto-merge. A human reviews and merges.\n\n'
+    if [[ "$outcome" == "SUCCESS" && "$is_class1" == "1" ]]; then
+      printf 'v4 auto-merge: class-1 + reviewer APPROVE — the loop merges once the required CI check is green.\n\n'
+    else
+      printf 'Not auto-merged (v4 merges class-1 + APPROVE only): a human reviews and merges.\n\n'
+    fi
     printf 'Closes #%s\n' "$issue"
   } >"$pr_body_file"
 
-  gh pr create --base main --head "$branch" \
+  local pr_url pr_num
+  pr_url="$(gh pr create --base main --head "$branch" \
     --title "US-${issue}: autonomous iteration (${outcome}, gate ${gate_status})" \
-    --body-file "$pr_body_file" >/dev/null
+    --body-file "$pr_body_file")"
+  pr_num="${pr_url##*/}"
+  log "PR #${pr_num} opened for #$issue (outcome ${outcome})"
+
+  if [[ "$outcome" == "SUCCESS" && "$is_class1" == "1" ]]; then
+    local am_rc=0
+    auto_merge "$issue" "$branch" "$pr_num" || am_rc=$?
+    return "$am_rc"
+  fi
+
   gh issue edit "$issue" --add-label "$label" --remove-label in-progress >/dev/null
-  log "PR opened for #$issue (outcome ${outcome}); issue -> ${label}"
+  log "issue #$issue -> ${label}"
   [[ "$outcome" == "SUCCESS" ]] && return 0 || return 40
 }
 
@@ -552,8 +624,8 @@ for ((i = 1; i <= MAX_ITERS; i++)); do
   rc=0
   iterate "$i" || rc=$?
   case "$rc" in
-    0)  log "iteration $i done (APPROVE, PR opened -> needs-review)";;
-    40) log "iteration $i done (budget exhausted, PR opened -> needs-human)";;
+    0)  log "iteration $i done (SUCCESS — auto-merged, or PR -> needs-review)";;
+    40) log "iteration $i done (FAIL terminal -> needs-human, PR open for audit)";;
     10) log "manual STOP.md — exiting"; exit 0;;
     11) log "no actionable issue — idle, exiting"; exit 0;;
     20) log "dry run reached its stop point — exiting"; exit 0;;
