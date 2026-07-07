@@ -272,6 +272,35 @@ notify() {
   fi
 }
 
+# --- blocked -> ready auto-flip ----------------------------------------------------------
+# After a verified merge, a dependency just closed. Flip every open `blocked` issue whose
+# body's `Blocked-by: #N` references are ALL closed. The just-merged issue counts as closed
+# even if GitHub's async issue-close lags the merge. Issues without the machine-readable
+# sentinel are left alone (human-managed). Runs only on the merge path — the only moment a
+# dependency can newly close. bash 3.2: while-read, no mapfile.
+flip_blocked() {
+  local merged_issue="$1" b refs r state all_closed
+  gh issue list --state open --label blocked --json number --jq '.[].number' 2>/dev/null \
+  | while read -r b; do
+      [[ -z "$b" ]] && continue
+      refs="$(gh issue view "$b" --json body --jq .body 2>/dev/null \
+              | grep -oE 'Blocked-by: #[0-9]+' | grep -oE '[0-9]+' || true)"
+      [[ -z "$refs" ]] && continue
+      all_closed=1
+      for r in $refs; do
+        [[ "$r" == "$merged_issue" ]] && continue
+        state="$(gh issue view "$r" --json state --jq .state 2>/dev/null || echo UNKNOWN)"
+        [[ "$state" == "CLOSED" ]] || { all_closed=0; break; }
+      done
+      if (( all_closed )); then
+        log "dependency #$merged_issue closed — flipping #$b blocked -> ready"
+        gh issue edit "$b" --add-label ready --remove-label blocked >/dev/null 2>&1 \
+          || log "WARNING: could not flip #$b blocked -> ready (flip by hand)"
+      fi
+    done
+  return 0
+}
+
 # --- v4 auto-merge (class-1 only) --------------------------------------------------------
 # Called only on outcome=SUCCESS for a class-1 issue, after the PR exists. Waits for the
 # required CI check bounded by CI_WAIT_TIMEOUT, then merges and VERIFIES the merge.
@@ -311,6 +340,7 @@ auto_merge() {
     return 50
   fi
   gh issue edit "$issue" --remove-label in-progress >/dev/null 2>&1 || true
+  flip_blocked "$issue"
   git fetch --quiet origin main || log "post-merge fetch failed (next iteration re-fetches anyway)"
   notify "harness: #${issue} auto-merged (PR #${pr_num}, CI green, reviewer APPROVE)"
   return 0

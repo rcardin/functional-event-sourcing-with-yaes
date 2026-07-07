@@ -315,6 +315,8 @@ echo "== Scenario J: class-1 SUCCESS + CI green -> auto-merge, notify, exit 0 ==
 setup_sandbox
 NOTIFY_LOG="$SB/notify-j.log"; : >"$NOTIFY_LOG"
 export STUB_ISSUE_LABELS="ready class-1"
+export STUB_BLOCKED_ISSUES="555 666"
+export STUB_DEP_STATE=OPEN
 export GATE_CMD=true
 export IT_GATE_CMD=true
 export IMPL_CMD='mkdir -p src/main/scala && printf "object Slice\n" > src/main/scala/Slice.scala'
@@ -329,7 +331,9 @@ checkc "merge verified (pr view state)" "pr view 123" "$GH_CALLS"
 check  "issue NOT flipped to needs-review (auto-merge path)" "" "$(grep 'add-label needs-review' "$GH_CALLS" || true)"
 checkc "in-progress label removed after merge" "issue edit 999 --remove-label in-progress" "$GH_CALLS"
 checkc "notify says auto-merged" "auto-merged" "$NOTIFY_LOG"
-unset STUB_ISSUE_LABELS GATE_CMD IT_GATE_CMD IMPL_CMD FIX_CMD REVIEW_CMD NOTIFY_CMD
+checkc "blocked dependent flipped to ready (all deps closed)" "issue edit 555 --add-label ready --remove-label blocked" "$GH_CALLS"
+check  "dependent with an open dep NOT flipped" "" "$(grep 'issue edit 666 --add-label ready' "$GH_CALLS" || true)"
+unset STUB_ISSUE_LABELS STUB_BLOCKED_ISSUES STUB_DEP_STATE GATE_CMD IT_GATE_CMD IMPL_CMD FIX_CMD REVIEW_CMD NOTIFY_CMD
 teardown
 
 echo "== Scenario K: class-1 SUCCESS + CI RED -> needs-human, NO merge, no self-repair =="
