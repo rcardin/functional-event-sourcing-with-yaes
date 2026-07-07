@@ -117,3 +117,11 @@ Then the exact command to file it (label it `ready` + its class; the loop picks 
 - **Class-2/3 earn this prompt's keep.** #7 was class-1 (trivially airtight). Patron
   aggregate / borrow process-manager / return choreography will resist one-iteration scope —
   the grill must force a split when a story can't finish in a single cold pass.
+- If the story depends on another issue (a prefactor slice, an earlier US), label it
+  `blocked` instead of `ready` and put one line per dependency in the body, exactly:
+
+      Blocked-by: #<issue-number>
+
+  The harness machine-reads this sentinel: when every referenced issue is closed, the
+  loop flips the label `blocked` -> `ready` automatically. Prose like "blocked by #14"
+  is NOT recognized.

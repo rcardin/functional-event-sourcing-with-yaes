@@ -24,14 +24,23 @@
 #     draw from the same pool. The tamper diff now also covers src/it.
 #
 # v3 (GitHub Actions CI `build` check + branch protection on main) shipped OUTSIDE this
-# script. This revision adds hardening on top: an infra-fault terminal (rc 50 — timeouts and
-# empty reviewer output exit for inspection WITHOUT spending the repair budget), a docker
+# script, followed by a hardening pass: infra-fault terminal rc 50 (timeouts and empty
+# reviewer output exit for inspection WITHOUT spending the repair budget), a docker
 # preflight before the real IT gate, protected-path enforcement in bash (harness/, docs/,
-# .github/, PROMPT.md, CONTEXT.md, STOP.md), and a fatal stale-base guard (fetch and branch
-# off origin/main must succeed).
+# .github/, PROMPT.md, CONTEXT.md, STOP.md), and a fatal stale-base guard.
 #
-# Still NOT here (see the spec's "deliberately excludes"): auto-merge (v4), convention-lint
-# gate step, rebase-on-main-and-rerun. The loop STILL STOPS AT PR — a human merges.
+# v4 (this revision) adds the auto-merge terminal, class-1 only: on reviewer APPROVE the
+# loop waits for the required CI check (bounded by CI_WAIT_TIMEOUT; timeout = infra fault
+# rc 50), merges with `gh pr merge --squash --delete-branch`, and VERIFIES the PR state is
+# MERGED (unverified = rc 50). CI red after green local gates flips the issue to
+# needs-human WITHOUT self-repair — the loop never repairs against the independent check.
+# Class-2/3 SUCCESS still stops at PR for a human merge. A verified merge also flips any
+# open `blocked` issue whose `Blocked-by: #N` body references are now all closed, and
+# fires the notify seam (NTFY_TOPIC / NOTIFY_CMD; also fired on every needs-human terminal
+# and every rc 50 exit).
+#
+# Still NOT here (deferred): convention-lint gate step, auto-merge for class-2/3, cost cap
+# in dollars (MAX_ITERS is the ceiling), container isolation.
 #
 # The loop never lets the model choose what to work on: bash resolves all state with `gh`
 # queries and dispatches narrow, fresh `claude -p` tasks. Every dispatch is fresh context.
