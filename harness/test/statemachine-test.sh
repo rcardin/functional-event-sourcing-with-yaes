@@ -232,6 +232,7 @@ case "\$1 \$2" in
     if [[ "\$*" == *"--label in-progress"* ]]; then echo "";
     elif [[ "\$*" == *"--label ready"* ]]; then echo "999"; fi ;;
   "issue view") printf '# US-999 sample\n\nAC1: implement the slice.\n' ;;
+  "pr create") echo "https://github.com/test/test/pull/321" ;;
   *) : ;;
 esac
 GHEOF
@@ -409,6 +410,25 @@ checkc "merge WAS attempted" "pr merge" "$GH_CALLS"
 check  "in-progress NOT removed (unverified)" "" "$(grep 'issue edit 999 --remove-label in-progress' "$GH_CALLS" || true)"
 checkc "notify fired (infra fault)" "infra fault" "$NOTIFY_LOG"
 unset STUB_ISSUE_LABELS STUB_PR_STATE GATE_CMD IT_GATE_CMD IMPL_CMD FIX_CMD REVIEW_CMD NOTIFY_CMD
+teardown
+
+echo "== Scenario O: merge command fails -> rc 50, in-progress kept =="
+setup_sandbox
+NOTIFY_LOG="$SB/notify-o.log"; : >"$NOTIFY_LOG"
+export STUB_ISSUE_LABELS="ready class-1"
+export MERGE_CMD=false
+export GATE_CMD=true
+export IT_GATE_CMD=true
+export IMPL_CMD='mkdir -p src/main/scala && printf "object Slice\n" > src/main/scala/Slice.scala'
+export FIX_CMD='true'
+export REVIEW_CMD='printf "checked AC1/AC2, tests present.\nVERDICT: APPROVE\n"'
+export NOTIFY_CMD='printf "%s\n" "$msg" >> '"$NOTIFY_LOG"
+run_loop
+check  "exit code 50 (merge command failed = infra fault)" 50 "$RC"
+check  "no pr view (verify not reached)" "" "$(grep 'pr view' "$GH_CALLS" || true)"
+check  "in-progress NOT removed" "" "$(grep 'issue edit 999 --remove-label in-progress' "$GH_CALLS" || true)"
+checkc "notify fired (infra fault)" "infra fault" "$NOTIFY_LOG"
+unset STUB_ISSUE_LABELS MERGE_CMD GATE_CMD IT_GATE_CMD IMPL_CMD FIX_CMD REVIEW_CMD NOTIFY_CMD
 teardown
 
 echo

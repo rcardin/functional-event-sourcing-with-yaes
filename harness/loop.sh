@@ -645,6 +645,10 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
     --title "US-${issue}: autonomous iteration (${outcome}, gate ${gate_status})" \
     --body-file "$pr_body_file")"
   pr_num="${pr_url##*/}"
+  if [[ -z "$pr_num" ]]; then
+    log "could not determine PR number from gh pr create output — infra fault"
+    return 50
+  fi
   log "PR #${pr_num} opened for #$issue (outcome ${outcome})"
 
   if [[ "$outcome" == "SUCCESS" && "$is_class1" == "1" ]]; then
