@@ -280,7 +280,7 @@ notify() {
 # dependency can newly close. bash 3.2: while-read, no mapfile.
 flip_blocked() {
   local merged_issue="$1" b refs r state all_closed
-  gh issue list --state open --label blocked --json number --jq '.[].number' 2>/dev/null \
+  { gh issue list --state open --label blocked --json number --jq '.[].number' 2>/dev/null || true; } \
   | while read -r b; do
       [[ -z "$b" ]] && continue
       refs="$(gh issue view "$b" --json body --jq .body 2>/dev/null \
