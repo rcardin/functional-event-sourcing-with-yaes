@@ -17,9 +17,9 @@ line() { echo "$1" | sed -n "${2}p"; }   # line "$out" 2 -> second line
 SB="$(mktemp -d)"
 trap 'rm -rf "$SB"' EXIT
 
-ev() { # ev TS PHASE STATE PASS BUDGET [LOGFILE] [DETAIL] [ISSUE] [RUN]
-  printf '{"ts":%s,"pid":4711,"run":"%s","iter":1,"issue":"%s","phase":"%s","state":"%s","pass":%s,"budget":%s,"logfile":"%s","detail":"%s"}\n' \
-    "$1" "${9:-100}" "${8:-5}" "$2" "$3" "$4" "$5" "${6:-}" "${7:-}"
+ev() { # ev TS PHASE STATE PASS BUDGET [LOGFILE] [DETAIL] [ISSUE] [RUN] [ITER]
+  printf '{"ts":%s,"pid":4711,"run":"%s","iter":%s,"issue":"%s","phase":"%s","state":"%s","pass":%s,"budget":%s,"logfile":"%s","detail":"%s"}\n' \
+    "$1" "${9:-100}" "${10:-1}" "${8:-5}" "$2" "$3" "$4" "$5" "${6:-}" "${7:-}"
 }
 
 echo "== Fixture A: IT gate running, loop alive -> running banner with elapsed =="
@@ -152,6 +152,38 @@ check "J fixture has more than 500 lines" "1" "$(( $(wc -l < "$F") > 500 ))"
 out="$(render_banner "$F" 1 1000)"
 check "J header"  "US-5 · iter 1 · pass 1 · budget 2"                    "$(line "$out" 1)"
 check "J chips 1" "✓ pick  ✓ impl  ✗ fast  · IT  ↺ fix 250"             "$(line "$out" 2)"
+
+echo "== Fixture K: same run, later iteration in flight -> the earlier iteration's DONE must not leak =="
+F="$SB/k.jsonl"
+{ ev 100 PICK      ok    0 2 ""                                   ""              5 200 1
+  ev 101 IMPL      ok    0 2 harness/logs/issue-5-iter1.claude.log ""             5 200 1
+  ev 200 FAST_GATE ok    1 2 harness/logs/issue-5-pass1.gate.log   ""             5 200 1
+  ev 300 IT_GATE   ok    1 2 harness/logs/issue-5-pass1.it-gate.log ""            5 200 1
+  ev 400 REVIEW    ok    1 2 ""                                   "verdict=APPROVE" 5 200 1
+  ev 450 PR        ok    0 2 ""                                   "pr=123"        5 200 1
+  ev 500 DONE      end   0 2 ""                                   "rc=0"          5 200 1
+  ev 600 PICK      ok    0 2 ""                                   ""              6 200 2
+  ev 601 IMPL      start 0 2 harness/logs/issue-6-iter2.claude.log ""             6 200 2
+} > "$F"
+out="$(render_banner "$F" 1 1000)"
+check "K header shows the in-flight issue, not the finished one" "US-6 · iter 2 · pass 0 · budget 2" "$(line "$out" 1)"
+check "K chips scope to the in-flight issue only (no leaked gate ticks)" \
+  "✓ pick  ▶ impl 6m39s  · fast  · IT" "$(line "$out" 2)"
+check "K status is RUNNING, not the earlier iteration's DONE" "RUNNING (pid 4711)" "$(line "$out" 4)"
+
+echo "== Fixture L: terminal DONE as the very last event, loop still alive -> DONE beats liveness =="
+F="$SB/l.jsonl"
+{ ev 100 PICK      ok    0 2 ""                                   ""              5 300
+  ev 101 IMPL      ok    0 2 harness/logs/issue-5-iter1.claude.log ""             5 300
+  ev 200 FAST_GATE ok    1 2 harness/logs/issue-5-pass1.gate.log   ""             5 300
+  ev 300 IT_GATE   ok    1 2 harness/logs/issue-5-pass1.it-gate.log ""            5 300
+  ev 400 REVIEW    ok    1 2 ""                                   "verdict=APPROVE" 5 300
+  ev 450 PR        ok    0 2 ""                                   "pr=123"        5 300
+  ev 500 DONE      end   0 2 ""                                   "rc=0"          5 300
+} > "$F"
+out="$(render_banner "$F" 1 1000)"
+check "L status is DONE even though the pid is alive (terminal beats liveness, not just staleness)" \
+  "DONE rc=0" "$(line "$out" 4)"
 
 echo
 echo "==== $pass passed, $fail failed ===="

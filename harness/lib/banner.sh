@@ -47,10 +47,20 @@ if length == 0 then
 else
   .[-1]                                                  as $last
   | [ .[] | select(.run == $last.run) ]                  as $ev
-  | (reduce $ev[] as $e ({}; .[$e.phase] = $e))          as $st
-  | ([ $ev[] | select(.phase == "FIX" and .state == "start") ] | length) as $fixes
+  # A run is stamped once per loop PROCESS, so with MAX_ITERS>1 the same run carries every
+  # iteration end to end: iteration N DONE is immediately followed by iteration N+1 PICK.
+  # The writer DONE means "this iteration ended"; the reader DONE must mean "the run is
+  # over", so the phase map is scoped to events at or after the LAST PICK, the start of the
+  # in-flight iteration. That scoping fixes two things at once: a DONE from a finished
+  # earlier iteration can no longer be mistaken for the run being over, and chips from that
+  # finished iteration (its FAST_GATE/IT_GATE ticks etc) can no longer paint the in-flight
+  # iteration row. If a run somehow has no PICK, fall back to using the whole run.
+  | ([ range(0; ($ev|length)) | select($ev[.].phase == "PICK") ] | last) as $pickIdx
+  | (if $pickIdx != null then $ev[$pickIdx:] else $ev end) as $cev
+  | (reduce $cev[] as $e ({}; .[$e.phase] = $e))          as $st
+  | ([ $cev[] | select(.phase == "FIX" and .state == "start") ] | length) as $fixes
   | ($st["DONE"])                                        as $done
-  | ([ $ev[] | select(.state == "start") ] | last)       as $lastStart
+  | ([ $cev[] | select(.state == "start") ] | last)      as $lastStart
   | (if $lastStart != null and $st[$lastStart.phase].state == "start"
      then $lastStart else null end)                      as $cur
 

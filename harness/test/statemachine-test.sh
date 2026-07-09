@@ -25,6 +25,16 @@ phase_seq() { # phase_seq STATUS_FILE
     | awk 'NR==1 || $0!=prev { printf "%s ", $0 } { prev=$0 }'
 }
 
+# phase_seq is state-blind: a phase that emitted "red" where "ok" was expected still shows
+# up as the same bare token, so a wrong outcome at the right position goes undetected. This
+# variant keeps the state, collapsing only exact consecutive phase:state duplicates, so a
+# flipped outcome (e.g. IT_GATE:ok where IT_GATE:red was required) changes the string.
+phase_state_seq() { # phase_state_seq STATUS_FILE
+  grep -o '"phase":"[A-Z_]*","state":"[a-z]*"' "$1" 2>/dev/null \
+    | sed -E 's/"phase":"([A-Z_]*)","state":"([a-z]*)"/\1:\2/' \
+    | awk 'NR==1 || $0!=prev { printf "%s ", $0 } { prev=$0 }'
+}
+
 setup_sandbox() {
   SB="$(mktemp -d)"
   BARE="$SB/origin.git"; WORK="$SB/work"; FAKEBIN="$SB/bin"
@@ -197,6 +207,13 @@ check "FIX sits between two gate passes, budget decremented" \
   "$(phase_seq "$WORK/harness/logs/status.jsonl")"
 checkc "budget decremented to 1 on the FIX event" '"budget":1' \
   "$WORK/harness/logs/status.jsonl"
+# phase_seq above collapses IT_GATE:start,IT_GATE:red,...,IT_GATE:start,IT_GATE:ok into a
+# single bare "IT_GATE" token twice: it would pass identically even if the driver had wrongly
+# emitted "ok" on the first pass instead of "red". This state-aware assertion is the one that
+# actually proves the RED path fired, not just that IT_GATE ran twice.
+check "phase:state sequence proves the first IT-gate pass was RED, not just that IT_GATE ran" \
+  "PICK:ok IMPL:start IMPL:ok FAST_GATE:start FAST_GATE:ok IT_GATE:start IT_GATE:red FIX:start FIX:ok FAST_GATE:start FAST_GATE:ok IT_GATE:start IT_GATE:ok REVIEW:start REVIEW:ok PR:ok DONE:end " \
+  "$(phase_state_seq "$WORK/harness/logs/status.jsonl")"
 unset GATE_CMD IT_GATE_CMD IMPL_CMD FIX_CMD REVIEW_CMD
 teardown
 
