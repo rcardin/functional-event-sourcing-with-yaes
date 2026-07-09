@@ -10,7 +10,9 @@
 # management and nothing else.
 #
 # Malformed lines are dropped (fromjson? // empty), so a torn append degrades to a dropped
-# frame rather than a crash.
+# frame rather than a crash. Lines that parse as valid JSON but are not event objects (a
+# bare scalar, or a shapeless {} missing the fields the renderer indexes) are dropped too,
+# by the shape guard in the same filter stage.
 
 # jq program. $alive and $now are injected; the input is the slurped array of valid events.
 # The phase-label helper is `chip_name`, NOT `label`: `label` is a reserved jq keyword
@@ -67,7 +69,7 @@ else
     ( [ "REVIEW", "PR", "CI_WAIT", "MERGE" ] | map(chip(.)) | join("  ") ),
 
     ( if $done != null then
-        "DONE " + ($done.detail // "")
+        "DONE " + (($done.detail // "") | gsub("[\r\n]+"; " "))
       elif $alive == 0 then
         "STALE (loop died in " + chip_name((($cur // $last).phase)) + ")"
       else
@@ -86,9 +88,15 @@ render_banner() {
     return 0
   fi
 
-  # tail bounds the read on a long-lived run; 500 lines is many multiples of one iteration.
-  # The first jq drops malformed lines; the second slurps the survivors and renders.
-  tail -n 500 "$file" \
-    | jq -R 'fromjson? // empty' \
+  # tail bounds the read: harness/logs/status.jsonl is append-only and never truncated, so
+  # an unbounded read grows without limit across months of runs. A `run` is stamped once per
+  # loop PROCESS, so it spans a whole loop process across all its iterations and issues, not
+  # a single iteration; 5000 lines is roughly 500 gate passes (about 900 KB) and still cheap
+  # to re-read once per second, so it comfortably covers one long-lived run.
+  # The first jq drops malformed lines and non-event JSON (valid syntax but the wrong shape:
+  # not an object, or missing a field the renderer indexes); the second slurps the survivors
+  # and renders.
+  tail -n 5000 "$file" \
+    | jq -R 'fromjson? // empty | select(type == "object" and has("run") and has("phase") and has("state"))' \
     | jq -s -r --argjson alive "$alive" --argjson now "$now" "$_BANNER_JQ"
 }

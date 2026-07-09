@@ -107,6 +107,52 @@ out="$(render_banner "$F" 1 1000)"
 check "G line count is 4" "4" "$(echo "$out" | wc -l | tr -d ' ')"
 check "G says no run yet" "no run yet" "$(line "$out" 1)"
 
+echo "== Fixture H: valid JSON but non-event line (bare scalar) is dropped, not crashed =="
+F="$SB/h.jsonl"
+{ ev 100 PICK  ok    0 2
+  ev 101 IMPL  start 0 2 harness/logs/issue-5-iter1.claude.log
+  echo 'true'
+} > "$F"
+set +e
+out="$(render_banner "$F" 1 1000)"
+rc=$?
+set -e
+check "H exits 0"                 "0" "$rc"
+check "H line count is 4"         "4" "$(echo "$out" | wc -l | tr -d ' ')"
+check "H renders the valid tail"  "✓ pick  ▶ impl 14m59s  · fast  · IT" "$(line "$out" 2)"
+
+echo "== Fixture I: detail with embedded newline is sanitized to one line =="
+F="$SB/i.jsonl"
+{ ev 100 PICK      ok  0 2
+  ev 101 IMPL      ok  0 2 harness/logs/issue-5-iter1.claude.log
+  ev 500 FAST_GATE ok  1 2 harness/logs/issue-5-pass1.gate.log
+  ev 700 IT_GATE   ok  1 2 harness/logs/issue-5-pass1.it-gate.log
+  ev 900 DONE      end 1 2 "" "rc=1\nfatal: something broke"
+} > "$F"
+out="$(render_banner "$F" 0 1000)"
+check "I line count is 4"              "4" "$(echo "$out" | wc -l | tr -d ' ')"
+check "I status has no embedded newline" "DONE rc=1 fatal: something broke" "$(line "$out" 4)"
+
+echo "== Fixture J: 500+ line run -> tail bound must not truncate early PICK/IMPL chips =="
+F="$SB/j.jsonl"
+{ ev 100 PICK ok 0 2
+  ev 101 IMPL ok 0 2 harness/logs/issue-5-iter1.claude.log
+  ts=200
+  i=1
+  while [[ $i -le 250 ]]; do
+    ev "$ts" FIX start 1 2 harness/logs/issue-5-pass1.fix.claude.log
+    ts=$((ts+1))
+    ev "$ts" FIX ok 1 2 harness/logs/issue-5-pass1.fix.claude.log
+    ts=$((ts+1))
+    i=$((i+1))
+  done
+  ev 900 FAST_GATE red 1 2 harness/logs/issue-5-pass1.gate.log
+} > "$F"
+check "J fixture has more than 500 lines" "1" "$(( $(wc -l < "$F") > 500 ))"
+out="$(render_banner "$F" 1 1000)"
+check "J header"  "US-5 · iter 1 · pass 1 · budget 2"                    "$(line "$out" 1)"
+check "J chips 1" "✓ pick  ✓ impl  ✗ fast  · IT  ↺ fix 250"             "$(line "$out" 2)"
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [[ "$fail" -eq 0 ]]
