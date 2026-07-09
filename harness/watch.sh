@@ -3,7 +3,7 @@
 # Live view of a harness/loop.sh run: a pinned four-line phase banner over a log pane that
 # follows whichever file the current phase is writing.
 #
-# Passive observability only — reads nothing back into the loop, never writes to the repo,
+# Passive observability only: reads nothing back into the loop, never writes to the repo,
 # never invokes gh. Attach, kill and reattach at any point in a run; the loop cannot tell.
 #
 # Usage:  harness/watch.sh [status.jsonl]
@@ -77,7 +77,7 @@ init_screen() {
 }
 trap 'init_screen; NEED_REDRAW=1' WINCH
 
-# The last valid event's field, or "" — a torn final line yields "".
+# The last valid event's field, or "". A torn final line yields "".
 last_field() { # last_field KEY
   tail -n 1 "$STATUS" 2>/dev/null | jq -R -r --arg k "$1" 'fromjson? // empty | .[$k] // empty' 2>/dev/null || true
 }
@@ -109,7 +109,7 @@ poll_source() {
   start_tail "$lf"
 }
 
-[[ -f "$STATUS" ]] || { echo "no status file at $STATUS — has a run started?" >&2; exit 1; }
+[[ -f "$STATUS" ]] || { echo "no status file at $STATUS (has a run started?)" >&2; exit 1; }
 
 init_screen
 (( TTY )) && printf '\033[?25l'                 # hide cursor; cleanup restores it

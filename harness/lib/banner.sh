@@ -4,8 +4,8 @@
 #
 #   render_banner <status_file> <alive:0|1> [now_epoch]  ->  exactly 4 lines on stdout
 #
-# No ANSI, no terminal queries, no side effects. Everything the banner decides — which run
-# is current, which phase is running, staleness, the fix badge, the terminal outcome — is
+# No ANSI, no terminal queries, no side effects. Everything the banner decides (which run
+# is current, which phase is running, staleness, the fix badge, the terminal outcome) is
 # decided here, which is why this is the feature's only test seam. watch.sh does terminal
 # management and nothing else.
 #
