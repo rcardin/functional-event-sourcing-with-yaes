@@ -6,5 +6,6 @@ enum MarkCopyAsDamagedError {
   case CopyNotFound(id: CopyId)
   case AlreadyDamaged(id: CopyId)
   case CopyIsLost(id: CopyId)
+  case CopyIsRemoved(id: CopyId)
   case UnexpectedError(message: String)
 }

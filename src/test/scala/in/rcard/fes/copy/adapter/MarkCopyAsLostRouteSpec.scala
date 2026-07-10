@@ -22,6 +22,8 @@ class MarkCopyAsLostRouteSpec extends AnyFlatSpec with SyncSpec with Matchers {
           Raise.raise(MarkCopyAsLostError.CopyNotFound(NOT_REGISTERED_COPY_ID))
         case ALREADY_LOST_COPY_ID =>
           Raise.raise(MarkCopyAsLostError.AlreadyLost(ALREADY_LOST_COPY_ID))
+        case ALREADY_REMOVED_COPY_ID =>
+          Raise.raise(MarkCopyAsLostError.CopyIsRemoved(ALREADY_REMOVED_COPY_ID))
         case UNEXPECTED_COPY_ID =>
           Raise.raise(MarkCopyAsLostError.UnexpectedError("Boom"))
         case _ =>
@@ -67,5 +69,14 @@ class MarkCopyAsLostRouteSpec extends AnyFlatSpec with SyncSpec with Matchers {
     val actualResponse = underTest.handle(request)
 
     actualResponse.status shouldBe 500
+  }
+
+  it should "return 409 if the copy is removed" in withSync {
+    val request =
+      Request(POST, s"/copies/$ALREADY_REMOVED_COPY_ID_VALUE/lost", Map.empty, "", Map.empty)
+
+    val actualResponse = underTest.handle(request)
+
+    actualResponse.status shouldBe 409
   }
 }

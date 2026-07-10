@@ -27,6 +27,8 @@ class RepairCopyUseCaseSpec
           Raise.raise(Error.CopyNotFound(copyId))
         case Command.Repair(copyId) if copyId == NOT_DAMAGED_COPY_ID =>
           Raise.raise(Error.NotDamaged(copyId))
+        case Command.Repair(copyId) if copyId == ALREADY_REMOVED_COPY_ID =>
+          Raise.raise(Error.CopyIsRemoved(copyId))
         case Command.Repair(copyId) if copyId == UNEXPECTED_COPY_ID =>
           Raise.raise(Error.UnexpectedError("Boom"))
         case Command.Repair(copyId) =>
@@ -60,5 +62,11 @@ class RepairCopyUseCaseSpec
     val actualResult = interceptRaised { underTest.repair(UNEXPECTED_COPY_ID) }
 
     actualResult shouldBe RepairCopyError.UnexpectedError("Boom")
+  }
+
+  it should "translate a domain CopyIsRemoved error into RepairCopyError.CopyIsRemoved" in withSync {
+    val actualResult = interceptRaised { underTest.repair(ALREADY_REMOVED_COPY_ID) }
+
+    actualResult shouldBe RepairCopyError.CopyIsRemoved(ALREADY_REMOVED_COPY_ID)
   }
 }

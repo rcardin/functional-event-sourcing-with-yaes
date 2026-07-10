@@ -22,6 +22,8 @@ class RepairCopyRouteSpec extends AnyFlatSpec with SyncSpec with Matchers {
           Raise.raise(RepairCopyError.CopyNotFound(NOT_REGISTERED_COPY_ID))
         case NOT_DAMAGED_COPY_ID =>
           Raise.raise(RepairCopyError.NotDamaged(NOT_DAMAGED_COPY_ID))
+        case ALREADY_REMOVED_COPY_ID =>
+          Raise.raise(RepairCopyError.CopyIsRemoved(ALREADY_REMOVED_COPY_ID))
         case UNEXPECTED_COPY_ID =>
           Raise.raise(RepairCopyError.UnexpectedError("Boom"))
         case _ =>
@@ -67,5 +69,14 @@ class RepairCopyRouteSpec extends AnyFlatSpec with SyncSpec with Matchers {
     val actualResponse = underTest.handle(request)
 
     actualResponse.status shouldBe 500
+  }
+
+  it should "return 409 if the copy is removed" in withSync {
+    val request =
+      Request(POST, s"/copies/$ALREADY_REMOVED_COPY_ID_VALUE/repaired", Map.empty, "", Map.empty)
+
+    val actualResponse = underTest.handle(request)
+
+    actualResponse.status shouldBe 409
   }
 }

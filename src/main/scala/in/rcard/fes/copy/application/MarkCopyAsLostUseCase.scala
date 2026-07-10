@@ -23,8 +23,9 @@ object MarkCopyAsLostUseCase {
           Raise.raise(MarkCopyAsLostError.CopyNotFound(copyId))
         case Error.AlreadyLost(copyId) =>
           Raise.raise(MarkCopyAsLostError.AlreadyLost(copyId))
-        case Error.AlreadyRegistered(_) | Error.AlreadyDamaged(_) | Error.CopyIsLost(_) | Error.NotDamaged(_) |
-            Error.CopyIsRemoved(_) =>
+        case Error.CopyIsRemoved(copyId) =>
+          Raise.raise(MarkCopyAsLostError.CopyIsRemoved(copyId))
+        case Error.AlreadyRegistered(_) | Error.AlreadyDamaged(_) | Error.CopyIsLost(_) | Error.NotDamaged(_) =>
           Raise.raise(MarkCopyAsLostError.UnexpectedError("Unexpected state while marking a copy as lost"))
         case Error.UnexpectedError(msg) =>
           Raise.raise(MarkCopyAsLostError.UnexpectedError(msg))

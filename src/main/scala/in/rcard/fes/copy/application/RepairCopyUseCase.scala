@@ -23,8 +23,9 @@ object RepairCopyUseCase {
           Raise.raise(RepairCopyError.CopyNotFound(copyId))
         case Error.NotDamaged(copyId) =>
           Raise.raise(RepairCopyError.NotDamaged(copyId))
-        case Error.AlreadyRegistered(_) | Error.AlreadyLost(_) | Error.AlreadyDamaged(_) | Error.CopyIsLost(_) |
-            Error.CopyIsRemoved(_) =>
+        case Error.CopyIsRemoved(copyId) =>
+          Raise.raise(RepairCopyError.CopyIsRemoved(copyId))
+        case Error.AlreadyRegistered(_) | Error.AlreadyLost(_) | Error.AlreadyDamaged(_) | Error.CopyIsLost(_) =>
           Raise.raise(RepairCopyError.UnexpectedError("Unexpected state while repairing a copy"))
         case Error.UnexpectedError(msg) =>
           Raise.raise(RepairCopyError.UnexpectedError(msg))
