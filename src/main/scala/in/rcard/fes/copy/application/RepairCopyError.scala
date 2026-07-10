@@ -5,5 +5,6 @@ import in.rcard.fes.copy.domain.Domain.CopyId
 enum RepairCopyError {
   case CopyNotFound(id: CopyId)
   case NotDamaged(id: CopyId)
+  case CopyIsRemoved(id: CopyId)
   case UnexpectedError(message: String)
 }

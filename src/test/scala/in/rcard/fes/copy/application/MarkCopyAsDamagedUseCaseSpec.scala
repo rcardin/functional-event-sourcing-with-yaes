@@ -29,6 +29,8 @@ class MarkCopyAsDamagedUseCaseSpec
           Raise.raise(Error.AlreadyDamaged(copyId))
         case Command.MarkAsDamaged(copyId) if copyId == ALREADY_LOST_COPY_ID =>
           Raise.raise(Error.CopyIsLost(copyId))
+        case Command.MarkAsDamaged(copyId) if copyId == ALREADY_REMOVED_COPY_ID =>
+          Raise.raise(Error.CopyIsRemoved(copyId))
         case Command.MarkAsDamaged(copyId) if copyId == UNEXPECTED_COPY_ID =>
           Raise.raise(Error.UnexpectedError("Boom"))
         case Command.MarkAsDamaged(copyId) =>
@@ -68,5 +70,11 @@ class MarkCopyAsDamagedUseCaseSpec
     val actualResult = interceptRaised { underTest.markAsDamaged(UNEXPECTED_COPY_ID) }
 
     actualResult shouldBe MarkCopyAsDamagedError.UnexpectedError("Boom")
+  }
+
+  it should "translate a domain CopyIsRemoved error into MarkCopyAsDamagedError.CopyIsRemoved" in withSync {
+    val actualResult = interceptRaised { underTest.markAsDamaged(ALREADY_REMOVED_COPY_ID) }
+
+    actualResult shouldBe MarkCopyAsDamagedError.CopyIsRemoved(ALREADY_REMOVED_COPY_ID)
   }
 }

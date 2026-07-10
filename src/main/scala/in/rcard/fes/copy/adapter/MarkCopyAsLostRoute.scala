@@ -54,6 +54,20 @@ object MarkCopyAsLostRoute {
               ),
               extraHeaders = Map(Headers.ContentType -> "application/json")
             )
+          case MarkCopyAsLostError.CopyIsRemoved(copyId) =>
+            Response.withStatus(
+              status = 409,
+              value = ProblemDetailsDTO(
+                title = "Conflict",
+                detail = "Copy is removed.",
+                errors = Seq(
+                  ErrorDTO(
+                    detail = s"The copy with id '${copyId.value}' is removed and cannot be marked as lost."
+                  )
+                )
+              ),
+              extraHeaders = Map(Headers.ContentType -> "application/json")
+            )
           case MarkCopyAsLostError.UnexpectedError(_) =>
             Response.internalServerError(
               ProblemDetailsDTO(
