@@ -9,4 +9,5 @@ private[copy] enum Event {
   case MarkedAsLost(id: CopyId)
   case MarkedAsDamaged(id: CopyId)
   case Repaired(id: CopyId)
+  case Removed(id: CopyId)
 }

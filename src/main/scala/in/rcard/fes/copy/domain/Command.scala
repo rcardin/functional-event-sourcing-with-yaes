@@ -7,4 +7,5 @@ private[copy] enum Command {
   case MarkAsLost(id: CopyId)
   case MarkAsDamaged(id: CopyId)
   case Repair(id: CopyId)
+  case Remove(id: CopyId)
 }

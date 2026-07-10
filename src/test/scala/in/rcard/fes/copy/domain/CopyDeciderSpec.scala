@@ -191,6 +191,77 @@ class CopyDeciderSpec extends AnyFlatSpec with RaiseSpec with Matchers {
     actualResult shouldBe Error.NotDamaged(COPY_ID)
   }
 
+  "CopyDecider.decide" should "remove a registered available copy" in {
+    val command = Command.Remove(COPY_ID)
+    val state   = CopyState.empty :+ Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR))
+
+    val actualResult = failOnRaise { underTest.decide(command, state) }
+
+    actualResult shouldBe Seq(Event.Removed(COPY_ID))
+  }
+
+  it should "remove a lost copy" in {
+    val command = Command.Remove(COPY_ID)
+    val state   = CopyState.empty :+
+      Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR)) :+
+      Event.MarkedAsLost(COPY_ID)
+
+    val actualResult = failOnRaise { underTest.decide(command, state) }
+
+    actualResult shouldBe Seq(Event.Removed(COPY_ID))
+  }
+
+  it should "remove a damaged copy" in {
+    val command = Command.Remove(COPY_ID)
+    val state   = CopyState.empty :+
+      Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR)) :+
+      Event.MarkedAsDamaged(COPY_ID)
+
+    val actualResult = failOnRaise { underTest.decide(command, state) }
+
+    actualResult shouldBe Seq(Event.Removed(COPY_ID))
+  }
+
+  it should "not remove a copy if it was never registered" in {
+    val command = Command.Remove(COPY_ID)
+    val state   = CopyState.empty
+
+    val actualResult = interceptRaised { underTest.decide(command, state) }
+
+    actualResult shouldBe Error.CopyNotFound(COPY_ID)
+  }
+
+  it should "make the copy state removed after applying the Removed event" in {
+    val command = Command.Remove(COPY_ID)
+    val state   = CopyState.empty :+ Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR))
+
+    val events       = failOnRaise { underTest.decide(command, state) }
+    val updatedState = events.foldLeft(state)(underTest.evolve)
+
+    updatedState.isRemoved(COPY_ID) shouldBe true
+  }
+
+  "CopyDecider.isTerminal" should "return true when the last event is a Removed event" in {
+    val state = CopyState.empty :+
+      Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR)) :+
+      Event.Removed(COPY_ID)
+
+    underTest.isTerminal(state) shouldBe true
+  }
+
+  it should "return false for an empty state" in {
+    underTest.isTerminal(CopyState.empty) shouldBe false
+  }
+
+  it should "return false for a copy that was registered, damaged and repaired" in {
+    val state = CopyState.empty :+
+      Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR)) :+
+      Event.MarkedAsDamaged(COPY_ID) :+
+      Event.Repaired(COPY_ID)
+
+    underTest.isTerminal(state) shouldBe false
+  }
+
   "CopyDecider.evolve" should "add the event to the state" in {
     val state = CopyState.empty
 
