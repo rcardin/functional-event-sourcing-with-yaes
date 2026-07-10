@@ -53,12 +53,15 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
     case EventStorePort.Error.VersionConflict(id)  => Error.UnexpectedError(s"Version conflict for copy: $id")
   }
 
+  private val liftTerminalError: (CopyId, CopyState) => Error =
+    (id, _) => Error.UnexpectedError(s"terminal: $id")
+
   private val registerCmd =
     Command.Register(COPY_ID, FOUNDATION_ISBN, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR))
 
   "CommandHandler.apply" should "return the new event when handling a command for a new aggregate" in withSync {
     val store   = InMemoryEventStore()
-    val underTest = CommandHandler.apply(decider, store, liftStoreError)
+    val underTest = CommandHandler.apply(decider, store, liftStoreError, liftTerminalError)
 
     val result = failOnRaise[Error, Seq[Event]] {
       underTest.handle(COPY_ID, registerCmd)
@@ -71,7 +74,7 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
 
   it should "reconstruct state from existing events and raise AlreadyRegistered for duplicate" in withSync {
     val store   = InMemoryEventStore()
-    val underTest = CommandHandler.apply(decider, store, liftStoreError)
+    val underTest = CommandHandler.apply(decider, store, liftStoreError, liftTerminalError)
 
     failOnRaise[Error, Seq[Event]] {
       underTest.handle(COPY_ID, registerCmd)
@@ -86,7 +89,7 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
 
   it should "propagate domain Error from decider without saving events" in withSync {
     val store   = InMemoryEventStore()
-    val underTest = CommandHandler.apply(decider, store, liftStoreError)
+    val underTest = CommandHandler.apply(decider, store, liftStoreError, liftTerminalError)
 
     failOnRaise[Error, Seq[Event]] {
       underTest.handle(COPY_ID, registerCmd)
@@ -116,7 +119,7 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
         if saveCallCount == 1 then Raise.raise(EventStorePort.Error.VersionConflict(id))
       }
     }
-    val underTest = CommandHandler.apply(decider, retryStore, liftStoreError)
+    val underTest = CommandHandler.apply(decider, retryStore, liftStoreError, liftTerminalError)
 
     val result = failOnRaise[Error, Seq[Event]] {
       underTest.handle(COPY_ID, registerCmd)
@@ -128,7 +131,7 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
     saveCallCount shouldBe 2
   }
 
-  it should "return empty events when aggregate is terminal" in withSync {
+  it should "raise the lifted terminal error when the aggregate is terminal" in withSync {
     val terminalDecider = new Decider[Command, Event, CopyState, Error] {
       override def decide(command: Command, state: CopyState): Seq[Event] raises Error =
         Seq(Event.Registered(COPY_ID, FOUNDATION_ISBN, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR)))
@@ -136,14 +139,16 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
       override val initialState: CopyState                           = CopyState.empty
       override def isTerminal(state: CopyState): Boolean             = true
     }
-    val store   = InMemoryEventStore()
-    val underTest = CommandHandler.apply(terminalDecider, store, liftStoreError)
+    val store = InMemoryEventStore()
+    val liftTerminal: (CopyId, CopyState) => Error =
+      (id, _) => Error.UnexpectedError(s"Copy '${id.value}' is in a terminal state")
+    val underTest = CommandHandler.apply(terminalDecider, store, liftStoreError, liftTerminal)
 
-    val result = failOnRaise[Error, Seq[Event]] {
+    val error = interceptRaised[Error, Seq[Event]] {
       underTest.handle(COPY_ID, registerCmd)
     }
 
-    result shouldBe Seq.empty
+    error shouldBe Error.UnexpectedError(s"Copy '${COPY_ID.value}' is in a terminal state")
     store.savedEvents(COPY_ID) shouldBe Seq.empty
   }
 
@@ -158,7 +163,7 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
       ): Unit raises EventStorePort.Error =
         ()
     }
-    val underTest = CommandHandler.apply(decider, brokenStore, liftStoreError)
+    val underTest = CommandHandler.apply(decider, brokenStore, liftStoreError, liftTerminalError)
 
     val error = interceptRaised[Error, Seq[Event]] {
       underTest.handle(COPY_ID, registerCmd)

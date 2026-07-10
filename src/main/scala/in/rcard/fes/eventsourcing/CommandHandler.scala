@@ -12,7 +12,8 @@ object CommandHandler {
   def apply[Id, Command, Error, Event, State](
       decider: Decider[Command, Event, State, Error],
       eventStore: EventStorePort[Id, Event],
-      liftStoreError: EventStorePort.Error => Error
+      liftStoreError: EventStorePort.Error => Error,
+      liftTerminalError: (Id, State) => Error
   ): CommandHandler[Id, Command, Error, Event] =
     new CommandHandler[Id, Command, Error, Event] {
       override def handle(id: Id, cmd: Command)(using Sync): Seq[Event] raises Error = {
@@ -22,7 +23,7 @@ object CommandHandler {
               eventStore.load(id)
             } { err => Raise.raise(liftStoreError(err)) }
           val state = events.foldLeft(decider.initialState)(decider.evolve)
-          if decider.isTerminal(state) then Seq.empty
+          if decider.isTerminal(state) then Raise.raise(liftTerminalError(id, state))
           else
             val newEvents = decider.decide(cmd, state)
             Raise.recover[EventStorePort.Error, Seq[Event]] {
