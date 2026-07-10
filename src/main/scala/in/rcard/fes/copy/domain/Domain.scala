@@ -8,7 +8,7 @@ object Domain {
   }
 
   enum Status {
-    case NotRegistered, Available, Lost, Damaged
+    case NotRegistered, Available, Lost, Damaged, Removed
   }
 
   extension (copyState: CopyState) {
@@ -19,6 +19,7 @@ object Domain {
           case Event.MarkedAsLost(`id`)        => Status.Lost
           case Event.MarkedAsDamaged(`id`)     => Status.Damaged
           case Event.Repaired(`id`)            => Status.Available
+          case Event.Removed(`id`)             => Status.Removed
         }
         .getOrElse(Status.NotRegistered)
 
@@ -27,6 +28,8 @@ object Domain {
     def isLost(id: CopyId): Boolean = copyState.currentStatus(id) == Status.Lost
 
     def isDamaged(id: CopyId): Boolean = copyState.currentStatus(id) == Status.Damaged
+
+    def isRemoved(id: CopyId): Boolean = copyState.currentStatus(id) == Status.Removed
   }
 
   // FIXME Insert the validations?

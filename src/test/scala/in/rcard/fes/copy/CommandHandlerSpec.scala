@@ -4,6 +4,7 @@ import in.rcard.fes.eventsourcing.CommandHandler
 import in.rcard.fes.eventsourcing.Decider
 import in.rcard.fes.eventsourcing.EventStorePort
 import in.rcard.fes.copy.Fixtures.*
+import in.rcard.fes.copy.application.CopyCommandHandler
 import in.rcard.fes.copy.domain.Command
 import in.rcard.fes.copy.domain.CopyDecider
 import in.rcard.fes.copy.domain.Domain.CopyId
@@ -150,6 +151,53 @@ class CommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec with M
 
     error shouldBe Error.UnexpectedError(s"Copy '${COPY_ID.value}' is in a terminal state")
     store.savedEvents(COPY_ID) shouldBe Seq.empty
+  }
+
+  private val removedStreamEvents = Seq(
+    Event.Registered(COPY_ID, FOUNDATION_ISBN, FOUNDATION_TITLE, Seq(FOUNDATION_AUTHOR)),
+    Event.Removed(COPY_ID)
+  )
+
+  private def storeWithRemovedCopy()(using Sync): InMemoryEventStore = {
+    val store = InMemoryEventStore()
+    failOnRaise[EventStorePort.Error, Unit] {
+      store.save(COPY_ID, 0, removedStreamEvents)
+    }
+    store
+  }
+
+  private def rejectsCommandOnRemovedCopy(cmd: Command)(using Sync): Unit = {
+    val store                    = storeWithRemovedCopy()
+    given CopyDecider            = decider
+    given EventStorePort[CopyId, Event] = store
+    val underTest                = CopyCommandHandler.live
+
+    val error = interceptRaised[Error, Seq[Event]] {
+      underTest.handle(COPY_ID, cmd)
+    }
+
+    error shouldBe Error.CopyIsRemoved(COPY_ID)
+    store.savedEvents(COPY_ID) shouldBe removedStreamEvents
+  }
+
+  "CopyCommandHandler" should "raise CopyIsRemoved for a Remove command on a removed copy" in withSync {
+    rejectsCommandOnRemovedCopy(Command.Remove(COPY_ID))
+  }
+
+  it should "raise CopyIsRemoved for a MarkAsLost command on a removed copy" in withSync {
+    rejectsCommandOnRemovedCopy(Command.MarkAsLost(COPY_ID))
+  }
+
+  it should "raise CopyIsRemoved for a MarkAsDamaged command on a removed copy" in withSync {
+    rejectsCommandOnRemovedCopy(Command.MarkAsDamaged(COPY_ID))
+  }
+
+  it should "raise CopyIsRemoved for a Repair command on a removed copy" in withSync {
+    rejectsCommandOnRemovedCopy(Command.Repair(COPY_ID))
+  }
+
+  it should "raise CopyIsRemoved for a Register command on a removed copy" in withSync {
+    rejectsCommandOnRemovedCopy(registerCmd)
   }
 
   it should "propagate UnexpectedError when load raises it" in withSync {

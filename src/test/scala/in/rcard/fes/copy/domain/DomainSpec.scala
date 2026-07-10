@@ -47,6 +47,51 @@ class DomainSpec extends AnyFlatSpec with Matchers {
     state.currentStatus(COPY_ID) shouldBe Status.Lost
   }
 
+  it should "return Removed after Registered then Removed" in {
+    val state = CopyState.empty :+
+      Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR)) :+
+      Event.Removed(COPY_ID)
+
+    state.currentStatus(COPY_ID) shouldBe Status.Removed
+  }
+
+  it should "let a Removed event win over an earlier lifecycle event" in {
+    val state = CopyState.empty :+
+      Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR)) :+
+      Event.MarkedAsDamaged(COPY_ID) :+
+      Event.Removed(COPY_ID)
+
+    state.currentStatus(COPY_ID) shouldBe Status.Removed
+  }
+
+  "Domain.isRemoved" should "return true for a removed copy" in {
+    val state = CopyState.empty :+
+      Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR)) :+
+      Event.Removed(COPY_ID)
+
+    state.isRemoved(COPY_ID) shouldBe true
+  }
+
+  it should "return false for a copy that is not removed" in {
+    val state = CopyState.empty :+
+      Event.Registered(COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR)) :+
+      Event.MarkedAsDamaged(COPY_ID)
+
+    state.isRemoved(COPY_ID) shouldBe false
+  }
+
+  it should "return false for an empty stream" in {
+    CopyState.empty.isRemoved(COPY_ID) shouldBe false
+  }
+
+  it should "return false when another copy was removed" in {
+    val state = CopyState.empty :+
+      Event.Registered(OTHER_COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR)) :+
+      Event.Removed(OTHER_COPY_ID)
+
+    state.isRemoved(COPY_ID) shouldBe false
+  }
+
   it should "ignore events for other ids" in {
     val state = CopyState.empty :+
       Event.Registered(OTHER_COPY_ID, COPY_ISBN, TITLE, Seq(AUTHOR)) :+
