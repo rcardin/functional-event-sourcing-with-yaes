@@ -6,6 +6,9 @@ FROM eclipse-temurin:25-jdk
 
 ARG SBT_VERSION=1.12.9
 ARG CLAUDE_INSTALL_URL=https://claude.ai/install.sh
+# Pinned so image rebuilds are reproducible; the installer verifies the downloaded binary's
+# checksum against its release manifest. Bump deliberately, together with IMAGE tag changes.
+ARG CLAUDE_VERSION=2.1.207
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl git ca-certificates gnupg \
@@ -25,7 +28,7 @@ RUN curl -fsSL "https://github.com/sbt/sbt/releases/download/v${SBT_VERSION}/sbt
 # /usr/local/bin so every user can exec it. It does not need to authenticate to report
 # `claude --version` — this slice never runs it agentically inside the sandbox.
 RUN mkdir -p /opt/claude-install \
-    && HOME=/opt/claude-install bash -c "curl -fsSL '$CLAUDE_INSTALL_URL' | bash" \
+    && HOME=/opt/claude-install bash -c "curl -fsSL '$CLAUDE_INSTALL_URL' | bash -s '$CLAUDE_VERSION'" \
     && claude_bin="$(find /opt/claude-install -maxdepth 6 -type f -perm -u+x -name 'claude' | head -1)" \
     && if [ -z "$claude_bin" ]; then \
          claude_bin="$(find /opt/claude-install/.local/share/claude/versions -maxdepth 1 -type f | head -1)"; \

@@ -19,8 +19,10 @@ fail=0
 echo "== proxy allowlist test: allowed host succeeds, blocked host refused ==" >&2
 
 run_curl() { # run_curl HOST -> prints "<http_code> <curl_exit_code>"
+  # Uses the sandbox image itself (it ships curl): the test then exercises egress from the
+  # exact image the gate runs in, and avoids pulling a drifting third-party :latest tag.
   local host="$1" code rc=0
-  code="$(docker run --rm --network "$NETWORK" curlimages/curl:latest \
+  code="$(docker run --rm --network "$NETWORK" --entrypoint curl "$IMAGE" \
     -x "http://$PROXY_NAME:$PROXY_PORT" -s -o /dev/null -w '%{http_code}' \
     --max-time 15 "https://$host/" 2>/dev/null)" || rc=$?
   printf '%s %s' "${code:-000}" "$rc"

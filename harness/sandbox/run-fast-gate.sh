@@ -50,6 +50,10 @@ waitfile="$(mktemp "$FES_SANDBOX_TMP_ROOT/wait-XXXXXX")"
 # convention loop.sh already maps to rc 50 with no repair budget spent).
 cleanup() {
   docker rm -f "$cname" >/dev/null 2>&1 || true
+  # Removing the container normally ends the background `docker logs -f` / `docker wait`
+  # clients on their own, but if the daemon is unreachable the rm fails and they'd outlive
+  # this wrapper as orphans — kill them explicitly (pids may be unset on early infra faults).
+  kill "${logs_pid:-}" "${wait_pid:-}" >/dev/null 2>&1 || true
   rm -rf "$tmpdir" "$waitfile"
 }
 on_signal() {

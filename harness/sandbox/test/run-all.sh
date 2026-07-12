@@ -18,10 +18,17 @@ fail=0
 
 echo "== AC6: coursier cache volume speed check (first run vs second run) ==" >&2
 cd "$REPO_ROOT"
+# Stage into a throwaway index so the caller's real staging state is untouched;
+# run-fast-gate.sh's `git write-tree` inherits GIT_INDEX_FILE and reads the same snapshot.
+export GIT_INDEX_FILE="$(mktemp)"
+rm -f "$GIT_INDEX_FILE"   # git rejects a zero-byte index file; let `git add` create it
+trap 'rm -f "$GIT_INDEX_FILE"; "$SELF_DIR/stop-proxy.sh" >/dev/null 2>&1 || true' EXIT
 git add -A
 log1="$(mktemp)"; log2="$(mktemp)"
-t0=$(date +%s); "$SELF_DIR/run-fast-gate.sh" >"$log1" 2>&1; rc1=$?; t1=$(date +%s)
-t2=$(date +%s); "$SELF_DIR/run-fast-gate.sh" >"$log2" 2>&1; rc2=$?; t3=$(date +%s)
+# `|| rcN=$?` keeps set -e from aborting before the exit code is captured.
+rc1=0; rc2=0
+t0=$(date +%s); "$SELF_DIR/run-fast-gate.sh" >"$log1" 2>&1 || rc1=$?; t1=$(date +%s)
+t2=$(date +%s); "$SELF_DIR/run-fast-gate.sh" >"$log2" 2>&1 || rc2=$?; t3=$(date +%s)
 d1=$((t1 - t0)); d2=$((t3 - t2))
 echo "  run1: rc=$rc1 ${d1}s   run2: rc=$rc2 ${d2}s   (logs: $log1 $log2)" >&2
 if [[ "$rc1" != "0" || "$rc2" != "0" ]]; then
