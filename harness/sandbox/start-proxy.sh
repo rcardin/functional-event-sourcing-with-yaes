@@ -21,7 +21,15 @@ docker run -d --name "$PROXY_NAME" \
   "$PROXY_IMAGE" >/dev/null
 
 # Also join the default bridge network for real egress (fes-sandbox-net alone has none).
+# A silently missing bridge attachment would leave the proxy "up" but egress-less, turning
+# infra faults into fake code REDs downstream — so verify the attachment and fail hard if
+# the connect failed for any reason other than "already connected".
 docker network connect bridge "$PROXY_NAME" >/dev/null 2>&1 || true
+if ! docker inspect -f '{{range $k, $_ := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}' \
+    "$PROXY_NAME" | grep -qx bridge; then
+  echo "[sandbox] fatal: proxy $PROXY_NAME is not attached to the bridge network (no egress)" >&2
+  exit 1
+fi
 
 # Readiness: no `nc`/`netcat` in the alpine+tinyproxy image, and tinyproxy writes no pidfile
 # by default in our config, so grep the container's own stdout log for tinyproxy's own

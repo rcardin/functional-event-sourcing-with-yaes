@@ -8,9 +8,16 @@ SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$SELF_DIR/lib.sh"
 REPO_ROOT="$(cd -- "$SELF_DIR/../.." && pwd)"
 
+# Single EXIT trap installed once, up front; GIT_INDEX_FILE is only set later (AC6), so
+# cleanup tolerates it being unset.
+cleanup() {
+  [[ -n "${GIT_INDEX_FILE:-}" ]] && rm -f "$GIT_INDEX_FILE"
+  "$SELF_DIR/stop-proxy.sh" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
 "$SELF_DIR/build-image.sh"
 "$SELF_DIR/start-proxy.sh"
-trap '"$SELF_DIR/stop-proxy.sh" >/dev/null 2>&1 || true' EXIT
 
 fail=0
 "$SELF_DIR/test/image-smoke-test.sh" || fail=1
@@ -22,7 +29,6 @@ cd "$REPO_ROOT"
 # run-fast-gate.sh's `git write-tree` inherits GIT_INDEX_FILE and reads the same snapshot.
 export GIT_INDEX_FILE="$(mktemp)"
 rm -f "$GIT_INDEX_FILE"   # git rejects a zero-byte index file; let `git add` create it
-trap 'rm -f "$GIT_INDEX_FILE"; "$SELF_DIR/stop-proxy.sh" >/dev/null 2>&1 || true' EXIT
 git add -A
 log1="$(mktemp)"; log2="$(mktemp)"
 # `|| rcN=$?` keeps set -e from aborting before the exit code is captured.
