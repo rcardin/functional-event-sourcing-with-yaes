@@ -4,8 +4,8 @@
 # proxy joined to both fes-sandbox-net (where gate containers live) and the default bridge
 # (its real egress), and waits for tinyproxy to actually be listening before returning.
 set -euo pipefail
-SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "$SELF_DIR/lib.sh"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
 
 # `--internal`: no route to the outside world. Gate containers join ONLY this network, so the
 # proxy is the only reachable peer — egress isolation lives here, not in a firewall inside the
@@ -27,7 +27,7 @@ docker run -d --name "$PROXY_NAME" \
 docker network connect bridge "$PROXY_NAME" >/dev/null 2>&1 || true
 if ! docker inspect -f '{{range $k, $_ := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}' \
     "$PROXY_NAME" | grep -qx bridge; then
-  echo "[sandbox] fatal: proxy $PROXY_NAME is not attached to the bridge network (no egress)" >&2
+  log "fatal: proxy $PROXY_NAME is not attached to the bridge network (no egress)"
   exit 1
 fi
 
@@ -37,11 +37,11 @@ fi
 # connections.`) rather than depending on a tool that may not be installed.
 for _ in $(seq 1 20); do
   if docker logs "$PROXY_NAME" 2>&1 | grep -q "Accepting connections"; then
-    echo "[sandbox] proxy $PROXY_NAME up on $NETWORK:$PROXY_PORT" >&2
+    log "proxy $PROXY_NAME up on $NETWORK:$PROXY_PORT"
     exit 0
   fi
   sleep 0.5
 done
-echo "[sandbox] proxy $PROXY_NAME did not come up in time" >&2
+log "proxy $PROXY_NAME did not come up in time"
 docker logs "$PROXY_NAME" 2>&1 | tail -20 >&2 || true
 exit 1

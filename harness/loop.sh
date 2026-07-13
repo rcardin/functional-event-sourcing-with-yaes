@@ -182,11 +182,12 @@ export TESTCONTAINERS_RYUK_DISABLED="${TESTCONTAINERS_RYUK_DISABLED:-true}"
 command -v gh    >/dev/null || die "gh not found"
 command -v sbt   >/dev/null || die "sbt not found"
 command -v claude >/dev/null || die "claude not found"
-# Docker preflight: the REAL IT gate (Testcontainers) needs a reachable docker daemon
-# (colima). Failing it mid-run would look like a RED gate and burn repair budget on an
-# infra problem, so refuse to start instead. Skipped when the seam is overridden (tests).
-if [[ "$IT_GATE_OVERRIDDEN" == "0" ]]; then
-  docker info >/dev/null 2>&1 || die "docker unreachable (colima running?) — IT gate would fail for infra reasons"
+# Docker reachability probe — needed if EITHER the IT gate or the FAST-gate sandbox will run
+# containerized (both need a reachable colima daemon; a mid-run failure looks like a false
+# gate-RED and burns repair budget, so refuse to start instead). Skipped only when BOTH
+# seams are overridden (state-machine tests touch no Docker).
+if [[ "$IT_GATE_OVERRIDDEN" == "0" || "$GATE_OVERRIDDEN" == "0" ]]; then
+  docker info >/dev/null 2>&1 || die "docker unreachable (colima running?) — gates would fail for infra reasons"
 fi
 # FAST-gate sandbox preflight (v6 slice 1): build the image, start the proxy sidecar, and make
 # sure it always stops on loop exit — normal exit or any die(). A dead/missing sidecar or a
@@ -195,7 +196,6 @@ fi
 # exits 124 (infra fault, no budget spent) if anything has gone stale mid-run. Skipped when
 # GATE_CMD is overridden — the state-machine test never touches Docker for the FAST-gate seam.
 if [[ "$GATE_OVERRIDDEN" == "0" ]]; then
-  docker info >/dev/null 2>&1 || die "docker unreachable (colima running?) — FAST-gate sandbox would fail for infra reasons"
   "$SCRIPT_DIR/sandbox/build-image.sh" || die "FAST-gate sandbox image build failed"
   "$SCRIPT_DIR/sandbox/start-proxy.sh" || die "FAST-gate sandbox proxy failed to start"
   trap '"$SCRIPT_DIR/sandbox/stop-proxy.sh" >/dev/null 2>&1 || true' EXIT

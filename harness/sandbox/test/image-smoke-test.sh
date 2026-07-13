@@ -3,8 +3,8 @@
 # container. Also spot-checks the non-root `gate` user and the absence of `gh` (AC5 — no
 # access to the host gh token by construction, since the binary isn't even in the image).
 set -euo pipefail
-SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-source "$SELF_DIR/lib.sh"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$SCRIPT_DIR/lib.sh"
 
 fail=0
 

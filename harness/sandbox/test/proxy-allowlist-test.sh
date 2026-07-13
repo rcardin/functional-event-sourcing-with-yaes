@@ -8,8 +8,8 @@
 # an unsuccessful CONNECT tunnel -- curl exit code 7 ("Failed to connect"), http_code 000 (no
 # response from the actual target was ever received, since the tunnel itself was refused).
 set -euo pipefail
-SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-source "$SELF_DIR/lib.sh"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$SCRIPT_DIR/lib.sh"
 
 fail=0
 

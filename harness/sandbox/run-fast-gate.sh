@@ -3,8 +3,8 @@
 # no-credentials container instead of on the host. loop.sh calls this as a single
 # word-splittable command — see the GATE_CMD/GATE_OVERRIDDEN seam in harness/loop.sh.
 set -euo pipefail
-SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "$SELF_DIR/lib.sh"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
 
 # --- preflight: any failure here is an INFRA FAULT, exit 124 (never a code failure) -------
 # loop.sh's run_gate() already treats a gate exit code of 124 as an infra fault (the pre-
