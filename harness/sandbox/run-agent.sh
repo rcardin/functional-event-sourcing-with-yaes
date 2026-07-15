@@ -115,15 +115,17 @@ logs_pid=$!
 docker wait "$cname" >"$waitfile" &
 wait_pid=$!
 wait "$wait_pid" || true
+
+# Let the log streamer flush the tail of the output (container has already exited here).
 wait "$logs_pid" 2>/dev/null || true
 
 rc="$(cat "$waitfile" 2>/dev/null || true)"
 [[ "$rc" =~ ^[0-9]+$ ]] || infra_fault "docker wait returned no usable exit code (got '${rc:-}')"
 
-# The entrypoint's only nonzero exit is 3 = prior patch failed to apply (an infra fault). Any
-# other container exit (including a claude failure) leaves a possibly-empty patch, which the host
-# reads as EMPTY — same as a host agent that produced nothing.
-(( rc == 3 )) && infra_fault "prior patch failed to apply inside the container"
+# The entrypoint's only nonzero exit is 3 = an infra fault (base-repo setup, prior patch would not
+# apply, or staging failed). Any other container exit (including a claude failure) leaves a
+# possibly-empty patch, which the host reads as EMPTY — same as a host agent that produced nothing.
+(( rc == 3 )) && infra_fault "container setup failed inside the sandbox (base repo, prior patch, or staging)"
 
 # Hand the patch back to the host. A missing patch (claude produced nothing) becomes an empty
 # file so the host's stage_patch sees EMPTY rather than a stale artifact.

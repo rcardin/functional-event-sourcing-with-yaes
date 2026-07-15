@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# v6 slice 3 (issue #36): run-agent.sh maps every infra fault to exit 124 (the infra-fault code
+# AC4: run-agent.sh maps every infra fault to exit 124 (the infra-fault code
 # loop.sh's dispatch_worker turns into an rc-50 exit that spends NO repair budget). Deterministic
 # and daemon-free: a missing API key fails before any docker call, and a bogus DOCKER_HOST makes
 # the `docker info` probe fail. This proves the "kill the container / no orphan, exit infra-fault"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# v6 slice 3 (issue #36): agent-entrypoint.sh must return the agent's work as a patch that is
+# AC2: agent-entrypoint.sh must return the agent's work as a patch that is
 # CUMULATIVE vs origin/main — the shape the host's stage_patch applies onto a pristine base.
 # The riskiest part is that a FIX builds on the PRIOR cumulative patch, so its diff has to carry
 # both the prior work AND the new edit. This test drives the entrypoint on the host (paths made

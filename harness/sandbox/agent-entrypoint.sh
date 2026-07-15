@@ -18,18 +18,21 @@ INPUT="${AGENT_INPUT:-/input}"
 OUTPUT="${AGENT_OUTPUT:-/output}"
 
 cd "$WORKSPACE"
-git init -q -b main               >/dev/null 2>&1
-git config user.email agent@sandbox >/dev/null 2>&1
-git config user.name  agent         >/dev/null 2>&1
-# WORKSPACE holds the pristine origin/main tree (host: git archive origin/main). Commit it so
-# HEAD == origin/main; the agent's cumulative diff below is measured against exactly this base,
-# the same base the host resets to before git-applying the returned patch.
-git add -A                        >/dev/null 2>&1
-git commit -q -m base             >/dev/null 2>&1
+{
+  git init -q -b main
+  git config user.email agent@sandbox
+  git config user.name  agent
+  # WORKSPACE holds the pristine origin/main tree (host: git archive origin/main). Commit it so
+  # HEAD == origin/main; the agent's cumulative diff below is measured against exactly this base,
+  # the same base the host resets to before git-applying the returned patch.
+  git add -A
+  git commit -q -m base
+} >/dev/null 2>&1 || { echo "[agent-entrypoint] base repo setup failed" >&2; exit 3; }
 
 # Overlay prior cumulative work (empty on the initial IMPL dispatch; the previous pass's patch on
 # a FIX) so the agent edits on top of prior work and its diff stays cumulative-vs-origin/main.
-# A prior patch that will not apply is an infra fault (exit 3 -> run-agent.sh maps it to 124).
+# Exit 3 is the entrypoint's single infra-fault code (run-agent.sh maps it to 124), covering
+# base-repo setup, a prior patch that will not apply, and staging failures.
 if [[ -s "$INPUT/prior.patch" ]]; then
   git apply --index "$INPUT/prior.patch" >/dev/null 2>&1 \
     || { echo "[agent-entrypoint] prior.patch did not apply" >&2; exit 3; }
@@ -46,5 +49,5 @@ claude -p "$(cat "$INPUT/prompt.txt")" \
 # Extract the agent's work as the cumulative patch. --no-renames keeps the host protected-path
 # guard rename-proof: a rename records as delete+add, so the concrete destination path appears
 # literally and harness/* etc. cannot be slipped past by renaming into a protected dir.
-git add -A                        >/dev/null 2>&1
+git add -A >/dev/null 2>&1 || { echo "[agent-entrypoint] staging the agent's work failed" >&2; exit 3; }
 git diff --cached --no-renames HEAD > "$OUTPUT/agent.patch" 2>/dev/null || true
