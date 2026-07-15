@@ -287,7 +287,7 @@ dispatch_worker() {
   fi
   rm -f "$prompt_file"
   if [[ "$rc" == "124" ]]; then
-    log "WARNING: $role sandbox dispatch hit the ${ITER_TIMEOUT}s timeout (container killed)"
+    log "WARNING: $role sandbox dispatch failed rc=124 (${ITER_TIMEOUT}s timeout or infra fault: missing image/proxy/Docker/API key/prior-patch)"
     return 124
   fi
   log "$role sandbox dispatch exited rc=$rc (patch written by the container)"

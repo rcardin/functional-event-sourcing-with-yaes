@@ -50,4 +50,5 @@ claude -p "$(cat "$INPUT/prompt.txt")" \
 # guard rename-proof: a rename records as delete+add, so the concrete destination path appears
 # literally and harness/* etc. cannot be slipped past by renaming into a protected dir.
 git add -A >/dev/null 2>&1 || { echo "[agent-entrypoint] staging the agent's work failed" >&2; exit 3; }
-git diff --cached --no-renames HEAD > "$OUTPUT/agent.patch" 2>/dev/null || true
+git diff --cached --no-renames HEAD > "$OUTPUT/agent.patch" 2>/dev/null \
+  || { echo "[agent-entrypoint] writing the agent patch to /output failed" >&2; exit 3; }

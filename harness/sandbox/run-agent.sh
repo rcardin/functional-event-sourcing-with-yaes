@@ -103,6 +103,7 @@ docker run -d --name "$cname" \
   --entrypoint /bin/bash \
   "$IMAGE" \
   /input/agent-entrypoint.sh \
+  >/dev/null \
   || infra_fault "docker run failed to start the agent container"
 
 # Stream the container's stdout (claude's stream-json) into this wrapper's stdout so
@@ -130,8 +131,8 @@ rc="$(cat "$waitfile" 2>/dev/null || true)"
 # Hand the patch back to the host. A missing patch (claude produced nothing) becomes an empty
 # file so the host's stage_patch sees EMPTY rather than a stale artifact.
 if [[ -f "$outdir/agent.patch" ]]; then
-  cp "$outdir/agent.patch" "$PATCH_OUT"
+  cp "$outdir/agent.patch" "$PATCH_OUT" || infra_fault "could not copy the agent patch back to the host"
 else
-  : > "$PATCH_OUT"
+  : > "$PATCH_OUT" || infra_fault "could not write the empty patch to $PATCH_OUT"
 fi
 exit 0
