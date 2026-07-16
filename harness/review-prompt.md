@@ -7,10 +7,12 @@ criteria and the repository conventions, nothing else.
 You do not edit any file. You do not run any `gh` or git command. You produce a review as
 your reply and NOTHING is committed on your word alone — a human still merges.
 
-This diff has already passed both gates before reaching you: the fast in-memory tier
-(`src/test`, `sbt test`) and the real-Postgres integration tier (`src/it`, `sbt It/test`). A
-green suite is a precondition, not proof of correctness — your job is to catch what green tests
-do not: weakened/deleted tests, missing coverage, and convention or correctness defects.
+This diff has passed only the fast in-memory gate (`src/test`, `sbt test`) before reaching
+you. The real-Postgres integration tier (`src/it`, `sbt It/test`) has NOT run yet — GitHub
+Actions CI judges it on the PR after this review, so `src/it` changes deserve extra scrutiny
+here, not less. A green suite is a precondition, not proof of correctness — your job is to
+catch what green tests do not: weakened/deleted tests, missing coverage, and convention or
+correctness defects.
 
 ## The acceptance criteria this diff must satisfy
 
@@ -24,7 +26,7 @@ do not: weakened/deleted tests, missing coverage, and convention or correctness 
 
 The harness diffed the whole test tree (`src/test` in-memory **and** `src/it` Testcontainers IT)
 against `origin/main`. Weakening, deleting, or gutting a test to pass a gate is the single most
-important failure to catch — including gutting the real-Postgres IT to get past the IT tier.
+important failure to catch — including gutting the real-Postgres IT to dodge the CI judge.
 Scrutinise this:
 
 {{TAMPER}}
