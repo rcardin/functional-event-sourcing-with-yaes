@@ -314,11 +314,14 @@ dispatch_review() {
     log "REVIEWER stub exited rc=$rc"
     return 0
   fi
-  local runner=("$SCRIPT_DIR/sandbox/run-reviewer.sh" "$prompt")
+  # Deliver the (large, multi-line) prompt via ENV, never argv — same reason dispatch_worker writes
+  # it to a file: keeps the full diff out of argv (ARG_MAX / process-listing leak). The env prefix
+  # scopes REVIEW_PROMPT to this one command and passes cleanly through gtimeout into run-reviewer.sh.
+  local runner=("$SCRIPT_DIR/sandbox/run-reviewer.sh")
   if [[ -n "$TIMEOUT_BIN" ]]; then
-    "$TIMEOUT_BIN" "$ITER_TIMEOUT" "${runner[@]}" >"$review_file" 2>"$review_file.stderr" || rc=$?
+    REVIEW_PROMPT="$prompt" "$TIMEOUT_BIN" "$ITER_TIMEOUT" "${runner[@]}" >"$review_file" 2>"$review_file.stderr" || rc=$?
   else
-    "${runner[@]}" >"$review_file" 2>"$review_file.stderr" || rc=$?
+    REVIEW_PROMPT="$prompt" "${runner[@]}" >"$review_file" 2>"$review_file.stderr" || rc=$?
   fi
   if [[ "$rc" == "124" ]]; then
     log "WARNING: REVIEWER sandbox dispatch failed rc=124 (${ITER_TIMEOUT}s timeout or infra fault: missing image/proxy/Docker/API key)"

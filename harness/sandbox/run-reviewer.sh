@@ -9,9 +9,11 @@
 # before. Independence is now enforced by CONSTRUCTION twice over: there is no tree in the
 # container to touch, and the mutating tools are still denied as defense-in-depth.
 #
-#   run-reviewer.sh PROMPT
+#   REVIEW_PROMPT=... run-reviewer.sh   (or, back-compat, run-reviewer.sh PROMPT)
 #
-# PROMPT   the fully-rendered reviewer prompt (diff + instructions already spliced in)
+# REVIEW_PROMPT  the fully-rendered reviewer prompt (diff + instructions already spliced in),
+#                delivered via ENV so the large multi-line diff never rides in argv (ARG_MAX /
+#                process-listing leak). $1 is still honoured as a back-compat fallback.
 #
 # stdout   the reviewer's text output — the VERDICT: sentinel on its last line — the product
 # stderr   this script's diagnostics + the container's stderr (never the verdict)
@@ -26,8 +28,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib.sh"
 
-PROMPT="${1:?run-reviewer.sh: PROMPT required}"
-
 # Tool-deny flags stay on the invocation as defense-in-depth: independence is already enforced by
 # the zero-mount container (there is no working tree to touch), but the reviewer is still handed no
 # mutating tools. Read stays allowed for extra context — identical to the pre-slice-4 host call.
@@ -37,6 +37,12 @@ REVIEWER_DENY=(--disallowed-tools Edit Write MultiEdit NotebookEdit Bash)
 # run-agent.sh / run-fast-gate.sh, and gtimeout wraps this script so a real timeout arrives as a
 # signal below.
 infra_fault() { echo "[run-reviewer] INFRA FAULT: $*" >&2; exit 124; }
+
+# Prompt from ENV (preferred, keeps the multi-line diff out of argv), $1 as back-compat fallback.
+# A missing prompt is an infra fault (124), not a bare shell error — so it maps to dispatch_review's
+# rc-50 no-budget terminal like every other infra fault, and only AFTER infra_fault() is defined.
+PROMPT="${REVIEW_PROMPT:-${1:-}}"
+[[ -n "$PROMPT" ]] || infra_fault "no reviewer prompt (set REVIEW_PROMPT env or pass it as argv \$1)"
 
 [[ -n "${ANTHROPIC_API_KEY:-}" ]] || infra_fault "ANTHROPIC_API_KEY not set (the sandboxed reviewer has no other way to authenticate)"
 sandbox_preflight   # docker reachable + image present + proxy running (shared, see lib.sh)

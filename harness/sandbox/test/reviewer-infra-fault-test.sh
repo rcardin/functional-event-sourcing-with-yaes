@@ -31,4 +31,24 @@ else
   echo "  FAIL expected rc 124 on unreachable Docker, got: $rc"; fail=1
 fi
 
+# 3. No prompt at all (neither REVIEW_PROMPT env nor argv $1) -> infra fault, NOT a bare shell error.
+rc=0
+( unset REVIEW_PROMPT; ANTHROPIC_API_KEY=dummy "$SCRIPT_DIR/run-reviewer.sh" ) >/dev/null 2>&1 || rc=$?
+if [[ "$rc" == "124" ]]; then
+  echo "  ok   missing prompt (no env, no argv) -> rc 124 (infra fault, no repair budget)"
+else
+  echo "  FAIL expected rc 124 with no prompt, got: $rc"; fail=1
+fi
+
+# 4. Prompt via REVIEW_PROMPT env (no argv) is accepted — it must NOT trip the missing-prompt fault;
+# the fault it does hit is the later missing-API-key one. Every infra fault is rc 124, so we assert
+# on the message to prove the env prompt was accepted rather than rejected as missing.
+err=0
+msg="$( unset ANTHROPIC_API_KEY; REVIEW_PROMPT="$prompt" "$SCRIPT_DIR/run-reviewer.sh" 2>&1 >/dev/null )" || err=$?
+if [[ "$err" == "124" && "$msg" != *"no reviewer prompt"* && "$msg" == *"ANTHROPIC_API_KEY"* ]]; then
+  echo "  ok   prompt via REVIEW_PROMPT env accepted (faulted on API key, not on missing prompt)"
+else
+  echo "  FAIL env prompt not accepted: rc=$err msg=$msg"; fail=1
+fi
+
 exit "$fail"

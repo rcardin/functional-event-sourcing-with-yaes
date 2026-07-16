@@ -21,7 +21,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$SCRIPT_DIR/lib.sh"
 
-ALLOWED_HOST="repo1.maven.org"    # on sandbox/proxy/allowlist
+# The reviewer/worker/fixer's actual critical allowlist entry — the host that must be reachable for
+# `claude` to work at all. Asserting on it (rather than a maven mirror) makes the test validate the
+# entry the roles genuinely depend on. No credentials needed: we only assert the proxy TUNNEL opens
+# (curl exit 0), not a 2xx — an allowlisted host may legitimately answer 401/404/405, which still
+# proves the fence let the CONNECT through.
+ALLOWED_HOST="api.anthropic.com"  # on sandbox/proxy/allowlist — the roles' critical egress target
 BLOCKED_HOST="example.com"        # deliberately not on the allowlist
 fail=0
 
@@ -55,7 +60,10 @@ check_role() {
   read -r allowed_code allowed_rc <<<"$(run_curl "$mech" "$ALLOWED_HOST")"
   read -r blocked_code blocked_rc <<<"$(run_curl "$mech" "$BLOCKED_HOST")"
 
-  if [[ "$allowed_rc" == "0" && "$allowed_code" == 2* ]]; then
+  # Success = the proxy opened the tunnel (curl exit 0). We do NOT require 2xx: an allowlisted host
+  # may answer 401/404/405 without credentials, which still proves egress was permitted. The refused
+  # case below (curl exit 7, http 000) is what distinguishes a fenced host from an allowed one.
+  if [[ "$allowed_rc" == "0" ]]; then
     echo "  ok   $role reaches allowlisted $ALLOWED_HOST (http=$allowed_code, via $mech)"
   else
     echo "  FAIL $role could not reach $ALLOWED_HOST: http=$allowed_code curl_rc=$allowed_rc (via $mech)"; fail=1
