@@ -69,10 +69,14 @@ check_role() {
     echo "  FAIL $role could not reach $ALLOWED_HOST: http=$allowed_code curl_rc=$allowed_rc (via $mech)"; fail=1
   fi
 
-  if [[ "$blocked_rc" != "0" ]]; then
+  # Refusal must match the PROXY's signature exactly (curl exit 7 = failed CONNECT tunnel, http
+  # 000 = no response line): a bare non-zero rc would also pass on a DNS failure (rc 6), a timeout
+  # (rc 28), or a dead proxy mid-run — none of which prove the allowlist FILTER is what refused the
+  # host, so the test could go green while the fence is broken. Assert the documented signature.
+  if [[ "$blocked_rc" == "7" && "$blocked_code" == "000" ]]; then
     echo "  ok   $role refused for non-allowlisted $BLOCKED_HOST (curl_rc=$blocked_rc, http=$blocked_code, via $mech)"
   else
-    echo "  FAIL $role reached non-allowlisted $BLOCKED_HOST (http=$blocked_code curl_rc=$blocked_rc, via $mech)"; fail=1
+    echo "  FAIL $role $BLOCKED_HOST refusal did not match proxy-filter signature (want curl_rc=7 http=000, got curl_rc=$blocked_rc http=$blocked_code, via $mech)"; fail=1
   fi
 }
 
