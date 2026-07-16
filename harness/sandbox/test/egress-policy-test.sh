@@ -68,9 +68,20 @@ check_role() {
   fi
 }
 
-check_role worker   env      # run-agent.sh: HTTP(S)_PROXY env
-check_role fixer    env      # run-agent.sh (same script/config as worker)
-check_role reviewer env      # run-reviewer.sh: HTTP(S)_PROXY env
-check_role gate     curl-x   # run-fast-gate.sh: JVM -Dhttp(s).proxyHost props (curl -x stands in)
+# Each of issue #37's four container roles, in the exact network posture its runner uses.
+# worker and fixer both run through run-agent.sh with identical image/config/network, so they
+# exercise the SAME env-proxy path — fixer is asserted separately to cover the named AC role, not
+# because it adds a distinct egress mechanism. reviewer shares that env path via run-reviewer.sh;
+# gate uses JVM -Dhttp(s).proxyHost props, which curl -x faithfully stands in for.
+roles=(
+  "worker   env"
+  "fixer    env"
+  "reviewer env"
+  "gate     curl-x"
+)
+for entry in "${roles[@]}"; do
+  # shellcheck disable=SC2086  # word-split intentional: "role mechanism" -> two args
+  check_role $entry
+done
 
 exit "$fail"

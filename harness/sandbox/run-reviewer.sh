@@ -39,11 +39,7 @@ REVIEWER_DENY=(--disallowed-tools Edit Write MultiEdit NotebookEdit Bash)
 infra_fault() { echo "[run-reviewer] INFRA FAULT: $*" >&2; exit 124; }
 
 [[ -n "${ANTHROPIC_API_KEY:-}" ]] || infra_fault "ANTHROPIC_API_KEY not set (the sandboxed reviewer has no other way to authenticate)"
-docker info >/dev/null 2>&1 || infra_fault "docker unreachable"
-docker image inspect "$IMAGE" >/dev/null 2>&1 \
-  || infra_fault "image $IMAGE missing (run harness/sandbox/build-image.sh)"
-[[ "$(docker inspect -f '{{.State.Running}}' "$PROXY_NAME" 2>/dev/null || true)" == "true" ]] \
-  || infra_fault "proxy $PROXY_NAME not running (run harness/sandbox/start-proxy.sh)"
+sandbox_preflight   # docker reachable + image present + proxy running (shared, see lib.sh)
 
 # Only a waitfile is needed on the host — the reviewer container mounts nothing, so there is no
 # workdir/input/output tmpdir to stage. Rooted under $HOME for the same colima reason the other
@@ -112,8 +108,10 @@ wait "$wait_pid" || true
 # Let the log streamer flush the tail of the output (container has already exited here).
 wait "$logs_pid" 2>/dev/null || true
 
-rc="$(cat "$waitfile" 2>/dev/null || true)"
-[[ "$rc" =~ ^[0-9]+$ ]] || infra_fault "docker wait returned no usable exit code (got '${rc:-}')"
+# Validate the docker-wait output for its side-effect only (a genuine infra check that docker wait
+# produced usable output), then discard it: unlike run-agent.sh the reviewer never branches on the
+# container's exit code — see the exit 0 rationale below.
+read_wait_rc "$waitfile" >/dev/null   # infra-fault on empty/garbage, else discard (shared, see lib.sh)
 
 # A nonzero claude exit is NOT an infra fault here: it leaves empty stdout, which loop.sh's
 # dispatch_review already treats as a crashed/timed-out reviewer (rc 50, no budget spent) — exactly
