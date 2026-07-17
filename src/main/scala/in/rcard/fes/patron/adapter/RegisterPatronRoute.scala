@@ -106,7 +106,7 @@ object RegisterPatronRoute {
           PatronName(dto.name),
           BorrowLimit(dto.borrowLimit)
         )
-        Response.created[String]("Created", Map("Location" -> s"/patrons/${dto.cardId}"))
+        Response.created[String]("Created", Map("Location" -> s"/patrons/${newPatronId.value}"))
       } { (error: RegisterPatronError | DecodingError) =>
         error match {
           case decodingError: DecodingError => handlingDecodingErrors(decodingError)

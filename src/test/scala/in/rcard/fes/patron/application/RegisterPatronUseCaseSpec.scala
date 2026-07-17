@@ -43,7 +43,7 @@ class RegisterPatronUseCaseSpec extends AnyFlatSpec with SyncSpec with RaiseSpec
     actualResult shouldBe RegisterPatronError.AlreadyRegistered(ALREADY_REGISTERED_CARD_ID)
   }
 
-  it should "raise an error if the command handler returns an unexpected event" in withSync {
+  it should "raise an error if the command handler raises an unexpected error" in withSync {
     val actualResult =
       interceptRaised { underTest.registerPatron(UNEXPECTED_CARD_ID, PATRON_NAME, BORROW_LIMIT) }
 
