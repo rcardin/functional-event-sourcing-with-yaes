@@ -10,6 +10,9 @@ import in.rcard.fes.copy.adapter.RepairCopyRoute
 import in.rcard.fes.copy.application.CopyCommandHandler.live
 import in.rcard.fes.copy.infrastructure.CopyPostgresEventStore.live
 import in.rcard.fes.copy.infrastructure.FindCopyByIsbnRepository.live
+import in.rcard.fes.patron.adapter.RegisterPatronRoute
+import in.rcard.fes.patron.application.PatronCommandHandler.live
+import in.rcard.fes.patron.infrastructure.PatronPostgresEventStore.live
 import in.rcard.yaes.http.client.{Uri, YaesClient}
 import in.rcard.yaes.http.server.{ServerDef, YaesServer}
 import in.rcard.yaes.slf4j.Slf4jLog
@@ -63,7 +66,8 @@ class App extends YaesApp {
       summon[MarkCopyAsLostRoute].markCopyAsLostRoute,
       summon[MarkCopyAsDamagedRoute].markCopyAsDamagedRoute,
       summon[RepairCopyRoute].repairCopyRoute,
-      summon[RemoveCopyRoute].removeCopyRoute
+      summon[RemoveCopyRoute].removeCopyRoute,
+      summon[RegisterPatronRoute].registerPatronRoute
     )
   }
 
