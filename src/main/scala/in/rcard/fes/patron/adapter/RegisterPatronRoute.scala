@@ -55,8 +55,9 @@ object RegisterPatronRoute {
             extraHeaders = Map(Headers.ContentType -> "application/json")
           )
         case RegisterPatronError.UnexpectedError(_) =>
-          Response.internalServerError(
-            ProblemDetailsDTO(
+          Response.withStatus(
+            status = 500,
+            value = ProblemDetailsDTO(
               title = "Unexpected error",
               detail = "An unexpected error occurred.",
               errors = Seq(
@@ -64,7 +65,8 @@ object RegisterPatronRoute {
                   detail = "Unexpected error"
                 )
               )
-            )
+            ),
+            extraHeaders = Map(Headers.ContentType -> "application/json")
           )
     }
 

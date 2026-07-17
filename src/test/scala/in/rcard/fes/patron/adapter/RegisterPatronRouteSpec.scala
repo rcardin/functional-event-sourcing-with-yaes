@@ -25,6 +25,9 @@ private val REGISTER_PATRON_UNEXPECTED_ERROR_REQUEST_JSON =
 private val REGISTER_PATRON_EMPTY_CARD_ID_REQUEST_JSON =
   s"""{"cardId": "", "name": "$PATRON_NAME_VALUE", "borrowLimit": $BORROW_LIMIT_VALUE}"""
 
+private val REGISTER_PATRON_EMPTY_NAME_REQUEST_JSON =
+  s"""{"cardId": "$CARD_ID_VALUE", "name": "", "borrowLimit": $BORROW_LIMIT_VALUE}"""
+
 private val REGISTER_PATRON_INVALID_BORROW_LIMIT_REQUEST_JSON =
   s"""{"cardId": "$CARD_ID_VALUE", "name": "$PATRON_NAME_VALUE", "borrowLimit": 0}"""
 
@@ -77,6 +80,16 @@ class RegisterPatronRouteSpec extends AnyFlatSpec with SyncSpec with Matchers {
 
     val request =
       Request(POST, "/patrons", Map.empty, REGISTER_PATRON_EMPTY_CARD_ID_REQUEST_JSON, Map.empty)
+
+    val actualResponse = underTest.handle(request)
+
+    actualResponse.status shouldBe 400
+  }
+
+  it should "return 400 if the name is empty" in withSync {
+
+    val request =
+      Request(POST, "/patrons", Map.empty, REGISTER_PATRON_EMPTY_NAME_REQUEST_JSON, Map.empty)
 
     val actualResponse = underTest.handle(request)
 
