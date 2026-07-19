@@ -22,7 +22,9 @@ enum LoopExit(val rc: Int):
   case NothingMade extends LoopExit(30)
   /** Budget exhausted / guard rejection / CI red — audit PR open, human takes over. */
   case NeedsHuman extends LoopExit(40)
-  /** Infra fault: budget untouched, no PR, labels untouched, issue resumable next tick. */
+  /** Infra fault: no budget spent past the raise, issue left in-progress so it resumes next
+    * tick, loop exits rc 50 for human inspection.
+    */
   case InfraFault extends LoopExit(50)
 
 /** What the patch seam (dispatch -> reset -> inspect -> apply) concluded for one agent patch. */
