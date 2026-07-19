@@ -26,7 +26,7 @@ A **process manager** coordinates the borrow flow across both aggregates. Return
 **Invariants:** a copy can only be borrowed if `Available`; you can't repair a copy that isn't `Damaged`; you can't remove a copy that's currently `Borrowed`.
 
 ### 2. Patron management (Librarian)
-- 🚧 **US-6** — *Register a patron.* As a librarian, I want to register a new patron with a borrow limit so that they can start borrowing books up to that limit.
+- ✅ **US-6** — *Register a patron.* As a librarian, I want to register a new patron with a borrow limit so that they can start borrowing books up to that limit.
 - **US-7** — *Suspend a patron.* As a librarian, I want to suspend a patron so that they cannot borrow new books until reinstated.
 - **US-8** — *Reinstate a patron.* As a librarian, I want to reinstate a previously suspended patron so that they can borrow books again.
 - **US-9** — *Deactivate a patron.* As a librarian, I want to permanently deactivate a patron so that the account is closed and no further actions are possible on it.
