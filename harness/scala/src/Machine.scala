@@ -150,6 +150,39 @@ object Machine:
         currentPatch = Some(p)
         emit(cur, "IMPL", "ok", implLog)
 
+    // The fixer dispatch across the patch seam plus the mapping of its StageResult onto the
+    // repair loop's control flow (bash dispatch_fix + handle_fix_result). Infra faults raise;
+    // guard rejections and an empty fix become the terminal FAIL; Ok advances currentPatch.
+    def fixRound(pass: Int, failFile: String): Unit =
+      val fixPromptFile = s"$LogDir/issue-$issue-pass$pass.fix.prompt.txt"
+      fs.write(
+        fixPromptFile,
+        renderTemplate(fs.readTemplate(Template.Fix), "ISSUE" -> fs.read(bodyFile), "FAILURE" -> fs.read(failFile))
+      )
+      val fixLog   = s"$LogDir/issue-$issue-pass$pass.fix.claude.log"
+      val fixPatch = s"$LogDir/issue-$issue-pass$pass.fix.patch"
+      emit(cur, "FIX", "start", fixLog)
+      stagePatch(Role.FIX, fixPromptFile, fixPatch, currentPatch) match
+        case StageResult.Timeout =>
+          emit(cur, "FIX", "red", fixLog, "timeout")
+          Raise.raise(InfraFault("FIX worker timed out (infra fault); exiting without spending further budget"))
+        case StageResult.ApplyFail =>
+          emit(cur, "FIX", "red", fixLog, "patch apply conflict")
+          Raise.raise(InfraFault("FIX patch did not apply (infra fault, no budget spent)"))
+        case StageResult.Protected =>
+          emit(cur, "FIX", "red", fixLog, "protected-path")
+          outcome = Some(Outcome.Fail); failureKind = Some(FailureKind.ProtectedPath)
+        case StageResult.Oversize =>
+          emit(cur, "FIX", "red", fixLog, "oversized patch")
+          outcome = Some(Outcome.Fail); failureKind = Some(FailureKind.OversizedPatch)
+        case StageResult.Empty =>
+          // The fixer reverted all prior work — route to needs-human, never re-gate an empty tree.
+          emit(cur, "FIX", "red", fixLog, "empty fix")
+          outcome = Some(Outcome.Fail); failureKind = Some(FailureKind.EmptyFix)
+        case StageResult.Ok(p) =>
+          emit(cur, "FIX", "ok", fixLog)
+          currentPatch = Some(p)
+
     // --- bounded self-repair loop --------------------------------------------------------
     // Skipped entirely if the initial patch was already rejected (outcome set above).
     while outcome.isEmpty do
@@ -203,7 +236,17 @@ object Machine:
             case Verdict.Approve =>
               outcome = Some(Outcome.Success)
             case Verdict.RequestChanges =>
-              ???
+              // REQUEST_CHANGES — spend from the same shared budget as gate-RED.
+              failureKind = Some(FailureKind.ReviewChanges)
+              if budget == 0 then outcome = Some(Outcome.Fail)
+              else
+                budget -= 1; cur.budget = budget
+                val failFile = s"$LogDir/issue-$issue-pass$pass.failure.md"
+                fs.write(
+                  failFile,
+                  s"## The independent reviewer requested changes\n\n${fs.read(reviewFile)}\n\n${fs.read(tamperFile)}"
+                )
+                fixRound(pass, failFile)
     end while
 
     // --- terminal: commit, push, PR (SUCCESS -> needs-review, FAIL -> needs-human) --------
@@ -258,10 +301,81 @@ object Machine:
       case Some(p) => p
     emit(cur, "PR", "ok", detail = s"pr=$prNum outcome=$outcomeText")
 
-    if outcome.contains(Outcome.Success) && isClass1 then ???
+    if outcome.contains(Outcome.Success) && isClass1 then autoMerge(issue, prNum, cur)
     else
       gh.editLabels(issue, add = List(label), remove = List("in-progress"))
       if outcome.contains(Outcome.Success) then LoopExit.Success else LoopExit.NeedsHuman
+
+  /** v4 auto-merge (class-1 + APPROVE only): wait-appear -> watch -> merge -> VERIFY the PR
+    * state is MERGED (unverified = infra fault) -> drop in-progress -> flip blocked ->
+    * fetch -> notify. CI red after green local gates = needs-human WITHOUT self-repair: the
+    * loop never repairs against the independent check.
+    */
+  private def autoMerge(issue: Int, prNum: Int, cur: Cursor)(using
+      cfg: Config,
+      gh: GitHub,
+      git: Git,
+      gates: GateRunner,
+      log: StatusLog,
+      notify: Notify,
+      clock: Clock
+  )(using Raise[InfraFault]): LoopExit =
+    val ciLog = s"$LogDir/issue-$issue.ci-wait.log"
+    emit(cur, "CI_WAIT", "start", ciLog)
+    // Discriminate on data, not on the exit code: a fresh PR routinely reports zero checks
+    // for a few seconds (push races the workflow scheduler, PR #28 / issue #26). Block until
+    // the rollup is non-empty, and only then let the CI watch judge. A check that never
+    // registers is a scheduler/infra problem, never rc 40.
+    if !waitForChecks(prNum) then
+      Raise.raise(
+        InfraFault(s"no CI check registered on PR #$prNum within ${cfg.ciAppearTimeout}s — PR open, issue stays in-progress")
+      )
+    gates.run("CI-WAIT", s"gh pr checks $prNum --watch --fail-fast", cfg.ciWaitTimeout, ciLog) match
+      case GateResult.Timeout =>
+        Raise.raise(InfraFault(s"CI wait hit the ${cfg.ciWaitTimeout}s bound — PR open, issue stays in-progress"))
+      case GateResult.Red =>
+        ???
+      case GateResult.Green =>
+        emit(cur, "CI_WAIT", "ok", ciLog)
+        emit(cur, "MERGE", "start")
+        if !gh.merge(prNum) then Raise.raise(InfraFault("merge command failed — infra fault"))
+        val state = gh.prState(prNum)
+        if state != "MERGED" then Raise.raise(InfraFault(s"merge NOT verified (PR state '$state') — infra fault"))
+        emit(cur, "MERGE", "ok", detail = s"pr=$prNum")
+        gh.editLabels(issue, add = Nil, remove = List("in-progress"))
+        flipBlocked(issue)
+        git.fetchOriginMain() // a post-merge fetch failure is tolerated: next tick re-fetches
+        notify.notify(s"harness: #$issue auto-merged (PR #$prNum, CI green, reviewer APPROVE)")
+        LoopExit.Success
+
+  /** Poll the rollup length until > 0, bounded by ciAppearTimeout. True once >=1 check is
+    * registered, false on timeout.
+    */
+  private def waitForChecks(prNum: Int)(using cfg: Config, gh: GitHub, clock: Clock): Boolean =
+    var waited = 0
+    while waited < cfg.ciAppearTimeout do
+      gh.checksRollupCount(prNum) match
+        case Some(n) if n > 0 => return true
+        case _                => ()
+      clock.sleepSeconds(cfg.ciAppearInterval)
+      waited += cfg.ciAppearInterval
+    false
+
+  /** `Blocked-by: #N` references in an issue body. */
+  private[harness] def parseBlockedBy(body: String): List[Int] =
+    "Blocked-by: #(\\d+)".r.findAllMatchIn(body).map(_.group(1).toInt).toList
+
+  /** After a verified merge, flip every open `blocked` issue whose Blocked-by refs are ALL
+    * closed. The just-merged issue counts as closed even if GitHub's async close lags the
+    * merge. Issues without the sentinel are left alone (human-managed).
+    */
+  private def flipBlocked(mergedIssue: Int)(using gh: GitHub): Unit =
+    gh.openBlockedIssues().foreach { b =>
+      val refs = parseBlockedBy(gh.issueBody(b))
+      if refs.nonEmpty then
+        val allClosed = refs.forall(r => r == mergedIssue || gh.issueState(r) == "CLOSED")
+        if allClosed then gh.editLabels(b, add = List("ready"), remove = List("blocked"))
+    }
 
   private enum Outcome:
     case Success, Fail
