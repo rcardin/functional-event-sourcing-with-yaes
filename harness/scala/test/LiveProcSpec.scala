@@ -111,7 +111,13 @@ class LiveProcSpec extends AnyFlatSpec with Matchers:
       reviewCmd = None
     )
 
-    val outcome = dispatch.worker(Role.IMPL, promptFile = "unused.txt", patchOut = "harness/logs/i.patch", currentPatch = None)
+    val outcome = dispatch.worker(
+      Role.IMPL,
+      promptFile = "unused.txt",
+      patchOut = "harness/logs/i.patch",
+      logFile = "harness/logs/i.claude.log",
+      currentPatch = None
+    )
 
     outcome shouldBe DispatchOutcome.Done
     readString(root.resolve("harness/logs/i.patch")) shouldBe "hello patch\n"
@@ -122,7 +128,7 @@ class LiveProcSpec extends AnyFlatSpec with Matchers:
     val dispatch =
       LiveAgentDispatch(root, timeoutBin = None, iterTimeout = 5, implCmd = Some("exit 124"), fixCmd = None, reviewCmd = None)
 
-    dispatch.worker(Role.IMPL, "unused.txt", "harness/logs/i.patch", None) shouldBe DispatchOutcome.TimedOut
+    dispatch.worker(Role.IMPL, "unused.txt", "harness/logs/i.patch", "harness/logs/i.claude.log", None) shouldBe DispatchOutcome.TimedOut
   }
 
   it should "fold any non-124 exit (including nonzero) to Done" in {
@@ -130,7 +136,7 @@ class LiveProcSpec extends AnyFlatSpec with Matchers:
     val dispatch =
       LiveAgentDispatch(root, timeoutBin = None, iterTimeout = 5, implCmd = Some("exit 7"), fixCmd = None, reviewCmd = None)
 
-    dispatch.worker(Role.IMPL, "unused.txt", "harness/logs/i.patch", None) shouldBe DispatchOutcome.Done
+    dispatch.worker(Role.IMPL, "unused.txt", "harness/logs/i.patch", "harness/logs/i.claude.log", None) shouldBe DispatchOutcome.Done
   }
 
   it should "select FIX_CMD for Role.FIX, independent of IMPL_CMD" in {
@@ -144,11 +150,11 @@ class LiveProcSpec extends AnyFlatSpec with Matchers:
       reviewCmd = None
     )
 
-    dispatch.worker(Role.FIX, "unused.txt", "harness/logs/f.patch", None) shouldBe DispatchOutcome.Done
+    dispatch.worker(Role.FIX, "unused.txt", "harness/logs/f.patch", "harness/logs/f.claude.log", None) shouldBe DispatchOutcome.Done
     readString(root.resolve("harness/logs/f.patch")) shouldBe "fix patch\n"
   }
 
-  it should "write the worker child's combined output to <patchOut>.dispatch.log (flagged deviation)" in {
+  it should "write the worker child's combined output to the given logFile (bash parity: $logf)" in {
     val root = tempRoot()
     val dispatch = LiveAgentDispatch(
       root,
@@ -159,9 +165,15 @@ class LiveProcSpec extends AnyFlatSpec with Matchers:
       reviewCmd = None
     )
 
-    dispatch.worker(Role.IMPL, "unused.txt", "harness/logs/i.patch", None) shouldBe DispatchOutcome.Done
+    dispatch.worker(
+      Role.IMPL,
+      "unused.txt",
+      "harness/logs/i.patch",
+      "harness/logs/issue-999-iter1.claude.log",
+      None
+    ) shouldBe DispatchOutcome.Done
 
-    val logged = readString(root.resolve("harness/logs/i.patch.dispatch.log"))
+    val logged = readString(root.resolve("harness/logs/issue-999-iter1.claude.log"))
     logged should include("worker-stdout")
     logged should include("worker-stderr")
   }
@@ -311,6 +323,11 @@ class LiveProcSpec extends AnyFlatSpec with Matchers:
 
     Files.write(work.resolve("garbage.patch"), "not a patch\n".getBytes(StandardCharsets.UTF_8))
     git.applyIndex("garbage.patch") shouldBe false
+
+    // bash parity: `git apply --index PATCH >"$patch.apply.err" 2>&1`, unconditional — the file
+    // lands with git's own error message even though the apply failed.
+    val applyErr = readString(work.resolve("garbage.patch.apply.err"))
+    applyErr should not be empty
   }
 
   "LiveGit add/commit/anythingStaged" should "round-trip: dirty -> staged -> committed -> clean" in {

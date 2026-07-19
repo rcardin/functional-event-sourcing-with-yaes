@@ -65,9 +65,10 @@ enum DispatchOutcome:
 /** The agent seam (IMPL_CMD / FIX_CMD / REVIEW_CMD / sandbox run-agent.sh, run-reviewer.sh). */
 trait AgentDispatch:
   /** Runs the worker; the contract is "a patch is produced at `patchOut`" (possibly empty).
+    * The child's combined stdout+stderr is written to `logFile` (bash's `$logf`).
     * `currentPatch` seeds the container tree with the prior cumulative work on a FIX.
     */
-  def worker(role: Role, promptFile: String, patchOut: String, currentPatch: Option[String]): DispatchOutcome
+  def worker(role: Role, promptFile: String, patchOut: String, logFile: String, currentPatch: Option[String]): DispatchOutcome
   /** Runs the cold reviewer; its stdout is written to `reviewFile`. */
   def review(prompt: String, reviewFile: String): DispatchOutcome
 

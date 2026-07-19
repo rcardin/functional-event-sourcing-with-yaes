@@ -164,8 +164,10 @@ final class TestWorld:
       record(s"git push -u origin $branch"); pushedBranches = pushedBranches :+ branch
 
   val agents: AgentDispatch = new AgentDispatch:
-    def worker(role: Role, promptFile: String, patchOut: String, currentPatch: Option[String]): DispatchOutcome =
-      record(s"dispatch $role promptFile=$promptFile patchOut=$patchOut currentPatch=${currentPatch.getOrElse("")}")
+    def worker(role: Role, promptFile: String, patchOut: String, logFile: String, currentPatch: Option[String]): DispatchOutcome =
+      record(
+        s"dispatch $role promptFile=$promptFile patchOut=$patchOut logFile=$logFile currentPatch=${currentPatch.getOrElse("")}"
+      )
       val script = role match
         case Role.IMPL => implScript
         case Role.FIX =>

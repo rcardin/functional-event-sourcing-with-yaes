@@ -141,7 +141,7 @@ object Machine:
     val implLog   = s"$LogDir/issue-$issue-iter$n.claude.log"
     val implPatch = s"$LogDir/issue-$issue-iter$n.impl.patch"
     emit(cur, "IMPL", "start", implLog)
-    stagePatch(Role.IMPL, workerPromptFile, implPatch, currentPatch) match
+    stagePatch(Role.IMPL, workerPromptFile, implPatch, implLog, currentPatch) match
       case StageResult.Empty =>
         emit(cur, "IMPL", "ok", implLog, "no diff")
         return LoopExit.NothingMade
@@ -170,7 +170,7 @@ object Machine:
       val fixLog   = s"$LogDir/issue-$issue-pass$pass.fix.claude.log"
       val fixPatch = s"$LogDir/issue-$issue-pass$pass.fix.patch"
       emit(cur, "FIX", "start", fixLog)
-      stagePatch(Role.FIX, fixPromptFile, fixPatch, currentPatch) match
+      stagePatch(Role.FIX, fixPromptFile, fixPatch, fixLog, currentPatch) match
         case StageResult.Empty =>
           // The fixer reverted all prior work — route to needs-human, never re-gate an empty tree.
           emit(cur, "FIX", "red", fixLog, "empty fix")
@@ -513,13 +513,19 @@ object Machine:
   /** The patch seam: dispatch the agent, reset to the pristine base, inspect the patch, THEN
     * apply it. The tree the agent edited is data to inspect, never trusted.
     */
-  private def stagePatch(role: Role, promptFile: String, patchOut: String, currentPatch: Option[String])(using
+  private def stagePatch(
+      role: Role,
+      promptFile: String,
+      patchOut: String,
+      logFile: String,
+      currentPatch: Option[String]
+  )(using
       cfg: Config,
       git: Git,
       agents: AgentDispatch,
       fs: HarnessFs
   ): StageResult =
-    agents.worker(role, promptFile, patchOut, currentPatch) match
+    agents.worker(role, promptFile, patchOut, logFile, currentPatch) match
       case DispatchOutcome.TimedOut => return StageResult.Timeout
       case DispatchOutcome.Done     => ()
     // Reset to the pristine base BEFORE looking at the patch.

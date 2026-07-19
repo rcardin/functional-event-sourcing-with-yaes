@@ -195,6 +195,8 @@ private[harness] object LiveProc:
     }
     env.foreach { case (k, v) => procEnv.put(k, v) }
     val proc = pb.start()
+    // Deliberate and inert: no harness child (`git`/`gh`/GATE_CMD/MERGE_CMD/the worker or
+    // reviewer stub) ever reads stdin, so closing it immediately is a no-op for all of them.
     proc.getOutputStream.close()
     val outBaos = new java.io.ByteArrayOutputStream()
     val errBaos = new java.io.ByteArrayOutputStream()
@@ -236,20 +238,12 @@ final class LiveGateRunner(root: Path, timeoutBin: Option[String]) extends GateR
 
 /** dispatch_worker (loop.sh:268-297) / dispatch_review (loop.sh:311-334).
   *
-  * Two deliberate deviations from a byte-exact bash port, both flagged prominently here and in
-  * the slice-2 task report:
-  *
-  *   1. Bash's worker child writes its combined stdout+stderr to `$logf`, a path private to
-  *      `iterate()`'s local scope (e.g. `issue-999-iter1.claude.log`) that `Caps.AgentDispatch
-  *      .worker` has no parameter for and that is not reconstructible from `role`/`promptFile`/
-  *      `patchOut`/`currentPatch` alone. This handler instead writes worker child output to
-  *      `"<patchOut>.dispatch.log"`, a deliberate, NOT bash-parity path, chosen because it is
-  *      the only name derivable purely from the signature. Worker output is never discarded,
-  *      just filed under a different (derivable) name than bash's.
-  *   2. The `REVIEW_CMD` stub path ALWAYS returns `Done`, regardless of the child's own exit
-  *      code: this is bash's OWN asymmetry with the worker stub path (loop.sh:314-317: a review
-  *      stub cannot simulate a reviewer timeout at all in the current suite), not something this
-  *      port introduced. Preserved verbatim, not "fixed" into worker-like rc-124 propagation.
+  * One deliberate deviation from a byte-exact bash port, flagged prominently here and in the
+  * slice-2 task report: the `REVIEW_CMD` stub path ALWAYS returns `Done`, regardless of the
+  * child's own exit code. This is bash's OWN asymmetry with the worker stub path (loop.sh:
+  * 314-317: a review stub cannot simulate a reviewer timeout at all in the current suite), not
+  * something this port introduced. Preserved verbatim, not "fixed" into worker-like rc-124
+  * propagation.
   */
 final class LiveAgentDispatch(
     root: Path,
@@ -260,13 +254,13 @@ final class LiveAgentDispatch(
     reviewCmd: Option[String]
 ) extends AgentDispatch:
 
-  def worker(role: Role, promptFile: String, patchOut: String, currentPatch: Option[String]): DispatchOutcome =
+  def worker(role: Role, promptFile: String, patchOut: String, logFile: String, currentPatch: Option[String]): DispatchOutcome =
     val overrideCmd = role match
       case Role.IMPL => implCmd
       case Role.FIX  => fixCmd
-    LiveLog.log(s"dispatching $role agent -> patch -> $patchOut")
     val patchOutAbs = root.resolve(patchOut)
-    val logPath     = root.resolve(s"$patchOut.dispatch.log")
+    val logPath     = root.resolve(logFile)
+    LiveLog.log(s"dispatching $role agent -> $logPath (patch -> $patchOutAbs)")
     Option(logPath.getParent).foreach(Files.createDirectories(_))
     overrideCmd match
       case Some(cmd) if cmd.nonEmpty =>
@@ -388,13 +382,19 @@ final class LiveGit(root: Path) extends Git:
     val r = git("apply", "--numstat", patch)
     if r.rc == 0 then r.stdoutTrimmedTrailingNewlines else ""
 
-  /** loop.sh:568: `git apply --index PATCH`. Bash also redirects the apply's own output to
-    * `"$patch.apply.err"` for a human to read later; `Caps.applyIndex` returns only a `Boolean`
-    * with no slot to carry that path out, so this port discards the apply output (the same
-    * class of gap as `merge`'s discarded CI-log append, flagged in the task report).
+  /** loop.sh:568: `git apply --index PATCH >"$patch.apply.err" 2>&1` (unconditional: the
+    * redirect runs whether the apply succeeds or fails, combined stdout+stderr). `patch` is
+    * already a path (see `applyNumstat`'s docstring), so `<patch>.apply.err` is derivable
+    * directly from it, same as bash's own `$patch.apply.err`.
     */
   def applyIndex(patch: String): Boolean =
-    git("apply", "--index", patch).rc == 0
+    val errPath = root.resolve(s"$patch.apply.err")
+    Option(errPath.getParent).foreach(Files.createDirectories(_))
+    val pb = new ProcessBuilder(Seq("git", "apply", "--index", patch).asJava)
+    pb.directory(root.toFile)
+    pb.redirectOutput(errPath.toFile) // truncates, matches ">$patch.apply.err"
+    pb.redirectErrorStream(true)      // merges child stderr into the same stream, matches "2>&1"
+    pb.start().waitFor() == 0
 
   /** loop.sh:524,841: `git add PATH` (the PATCH-REJECTED.md / FIX-EMPTY.md marker paths). */
   def add(path: String): Unit =
