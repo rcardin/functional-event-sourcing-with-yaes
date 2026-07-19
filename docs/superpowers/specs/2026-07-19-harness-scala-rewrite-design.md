@@ -1,6 +1,6 @@
 # Harness Scala rewrite — typed state machine over yaes capabilities
 
-Status: designed, not implemented
+Status: designed; implementation in progress (slice 1 complete)
 Date: 2026-07-19
 Builds on: harness v6 slice 4 (`harness/loop.sh`, PR #40), observability v5 (`harness/watch.sh`)
 
