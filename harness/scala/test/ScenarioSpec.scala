@@ -176,3 +176,71 @@ class ScenarioSpec extends AnyFlatSpec with Matchers:
     )
   }
 
+  // ---- Scenario C: gate-RED exhausts the shared budget -> needs-human + audit PR -----------
+
+  it should "exhaust the shared budget on repeated gate-RED and route to needs-human with an audit PR (Scenario C)" in {
+    val w = TestWorld()
+    w.gateResults = List(GateResult.Red, GateResult.Red, GateResult.Red)
+    w.fixScripts = List(
+      WorkerScript.Produces("1\t0\tsrc/main/scala/Fix1.scala"),
+      WorkerScript.Produces("1\t0\tsrc/main/scala/Fix2.scala")
+    )
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.NeedsHuman
+    exit.rc shouldBe 40
+    w.callCount("dispatch FIX") shouldBe 2       // exactly two fixes (budget 2)
+    w.callCount("gate FAST") shouldBe 3          // 2 fixes + final RED, no fourth pass
+    w.callCount("dispatch REVIEW") shouldBe 0    // RED never renders a review prompt
+    w.called("gh issue edit 999 --add-label needs-human --remove-label in-progress") shouldBe true
+    w.called("gh pr create") shouldBe true       // PR still opened (audit trail)
+    w.notifications shouldBe List("harness: #999 needs-human (gate-RED, gate RED)")
+    w.commitMessages.head should include("self-repair budget exhausted (gate-RED), gate RED")
+    w.prBodies.head should include("**Needs human** — self-repair budget of 2 exhausted on gate-RED (last gate RED)")
+  }
+
+  it should "exhaust the shared budget on repeated REQUEST_CHANGES via the same pool" in {
+    val w = TestWorld()
+    w.reviewScripts = List(
+      ReviewScript.Says("VERDICT: REQUEST_CHANGES"),
+      ReviewScript.Says("VERDICT: REQUEST_CHANGES"),
+      ReviewScript.Says("VERDICT: REQUEST_CHANGES")
+    )
+    w.fixScripts = List(
+      WorkerScript.Produces("1\t0\tsrc/main/scala/Fix1.scala"),
+      WorkerScript.Produces("1\t0\tsrc/main/scala/Fix2.scala")
+    )
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.NeedsHuman
+    w.callCount("dispatch FIX") shouldBe 2
+    w.callCount("dispatch REVIEW") shouldBe 3
+    w.called("gh issue edit 999 --add-label needs-human --remove-label in-progress") shouldBe true
+    w.notifications shouldBe List("harness: #999 needs-human (REQUEST_CHANGES, gate GREEN)")
+    w.commitMessages.head should include("self-repair budget exhausted (REQUEST_CHANGES), gate GREEN")
+  }
+
+  // ---- Scenario D: IMPL dispatch timeout -> rc 50, budget untouched, nothing dispatched ----
+
+  it should "exit InfraFault (rc 50) on an IMPL dispatch timeout: no budget spent, no gates, no PR, resumable (Scenario D)" in {
+    val w = TestWorld()
+    w.implScript = WorkerScript.TimedOut
+    w.fixScripts = List(WorkerScript.Produces(newFilePatch)) // must never be consumed
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.InfraFault
+    exit.rc shouldBe 50
+    w.callCount("dispatch FIX") shouldBe 0                    // zero FIX (no budget spent)
+    w.callCount("gate FAST") shouldBe 0                       // a timed-out worker never reaches the gates
+    w.called("gh pr create") shouldBe false
+    w.called("needs-human") shouldBe false
+    w.called("gh issue edit 999 --add-label in-progress --remove-label ready") shouldBe true
+    w.callCount("--remove-label in-progress") shouldBe 0      // resumable next tick
+    w.phaseSeq shouldBe List("PICK", "IMPL", "DONE")          // stops at the timed-out IMPL
+    w.events.find(e => e.phase == "IMPL" && e.state == "red").get.detail shouldBe "timeout"
+    w.notifications shouldBe List("harness: infra fault — loop exited rc=50 for inspection (issue stays in-progress)")
+  }
+

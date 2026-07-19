@@ -56,8 +56,12 @@ object Machine:
       HarnessFs,
       Clock
   ): LoopExit =
-    val cur  = Cursor()
-    val exit = Raise.fold(iterate(n, cur))(_ => LoopExit.InfraFault)(identity)
+    val cur = Cursor()
+    val exit = Raise.fold(iterate(n, cur)) { (_: InfraFault) =>
+      // rc-50 exits fire the notify seam: exit for inspection, issue stays in-progress.
+      summon[Notify].notify("harness: infra fault — loop exited rc=50 for inspection (issue stays in-progress)")
+      LoopExit.InfraFault
+    }(identity)
     emit(cur, "DONE", "end", detail = s"rc=${exit.rc}")
     exit
 
@@ -195,7 +199,19 @@ object Machine:
         case GateResult.Timeout =>
           Raise.raise(InfraFault(s"FAST gate hit the ${cfg.gateTimeout}s timeout — infra fault, not a code failure"))
         case GateResult.Red =>
-          ???
+          gateStatus = "RED"
+          failureKind = Some(FailureKind.GateRed)
+          emit(cur, "FAST_GATE", "red", gateLog)
+          if budget == 0 then outcome = Some(Outcome.Fail)
+          else
+            budget -= 1; cur.budget = budget
+            val failFile = s"$LogDir/issue-$issue-pass$pass.failure.md"
+            fs.write(
+              failFile,
+              s"## Fast-gate failure — `${cfg.gateCmd}` (compile under -Werror, then in-memory tests)\n\n" +
+                s"Tail of the fast-gate log:\n\n```\n${fs.read(gateLog)}\n```\n"
+            )
+            fixRound(pass, failFile)
         case GateResult.Green =>
           gateStatus = "GREEN"
           emit(cur, "FAST_GATE", "ok", gateLog)
@@ -270,7 +286,15 @@ object Machine:
           s"reviewer APPROVE, gate $gateStatus",
           s"**Reviewer: APPROVE** · gate $gateStatus (containerized in-memory FAST tier green; the real-PG IT tier is judged by CI on this PR). Not class-1, so not auto-merged: a human reviews and merges."
         )
-      else ???
+      else if failureKind.contains(FailureKind.ProtectedPath) || failureKind.contains(FailureKind.OversizedPatch)
+      then ???
+      else if failureKind.contains(FailureKind.EmptyFix) then ???
+      else
+        (
+          "needs-human",
+          s"self-repair budget exhausted ($kindText), gate $gateStatus",
+          s"**Needs human** — self-repair budget of ${cfg.repairBudget} exhausted on $kindText (last gate $gateStatus). Opened for the audit trail; do NOT merge without review."
+        )
 
     if label == "needs-human" then notify.notify(s"harness: #$issue needs-human ($kindText, gate $gateStatus)")
 
