@@ -358,7 +358,14 @@ object Machine:
       case GateResult.Timeout =>
         Raise.raise(InfraFault(s"CI wait hit the ${cfg.ciWaitTimeout}s bound — PR open, issue stays in-progress"))
       case GateResult.Red =>
-        ???
+        emit(cur, "CI_WAIT", "red", ciLog)
+        gh.prComment(
+          prNum,
+          "CI red after local gates were green. The loop never self-repairs against the independent check (v3 hands-off rule) — a human must look."
+        )
+        gh.editLabels(issue, add = List("needs-human"), remove = List("in-progress"))
+        notify.notify(s"harness: #$issue CI RED -> needs-human (PR #$prNum)")
+        LoopExit.NeedsHuman
       case GateResult.Green =>
         emit(cur, "CI_WAIT", "ok", ciLog)
         emit(cur, "MERGE", "start")

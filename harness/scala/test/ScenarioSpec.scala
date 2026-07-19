@@ -244,3 +244,203 @@ class ScenarioSpec extends AnyFlatSpec with Matchers:
     w.notifications shouldBe List("harness: infra fault — loop exited rc=50 for inspection (issue stays in-progress)")
   }
 
+  // ---- Scenario E: FIX dispatch timeout -> rc 50, no PR, in-progress kept ------------------
+
+  it should "exit InfraFault on a FIX dispatch timeout without spending further budget (Scenario E)" in {
+    val w = TestWorld()
+    w.gateResults = List(GateResult.Red)
+    w.fixScripts = List(WorkerScript.TimedOut)
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.InfraFault
+    w.callCount("dispatch FIX") shouldBe 1                    // one FIX attempted, then halted
+    w.callCount("dispatch REVIEW") shouldBe 0
+    w.called("gh pr create") shouldBe false
+    w.called("needs-human") shouldBe false
+    w.callCount("--remove-label in-progress") shouldBe 0      // resumable next tick
+    w.notifications shouldBe List("harness: infra fault — loop exited rc=50 for inspection (issue stays in-progress)")
+  }
+
+  // ---- REVIEW dispatch timeout -> rc 50, budget untouched ----------------------------------
+
+  it should "exit InfraFault on a REVIEW dispatch timeout without spending budget" in {
+    val w = TestWorld()
+    w.reviewScripts = List(ReviewScript.TimedOut)
+    w.fixScripts = List(WorkerScript.Produces(newFilePatch)) // must never be consumed
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.InfraFault
+    w.callCount("dispatch FIX") shouldBe 0
+    w.called("gh pr create") shouldBe false
+    w.events.find(e => e.phase == "REVIEW" && e.state == "red").get.detail shouldBe "timeout"
+    w.callCount("--remove-label in-progress") shouldBe 0
+    w.notifications shouldBe List("harness: infra fault — loop exited rc=50 for inspection (issue stays in-progress)")
+  }
+
+  // ---- Scenario H: empty reviewer output = infra fault (NOT a fail-safe verdict) -----------
+
+  it should "treat an empty reviewer output as an infra fault, not a verdict (Scenario H)" in {
+    val w = TestWorld()
+    w.reviewScripts = List(ReviewScript.Says("  \n \t "))
+    w.fixScripts = List(WorkerScript.Produces(newFilePatch)) // must never be consumed
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.InfraFault
+    w.callCount("dispatch FIX") shouldBe 0                    // spends nothing
+    w.called("gh pr create") shouldBe false
+    w.called("needs-human") shouldBe false
+    w.events.find(e => e.phase == "REVIEW" && e.state == "red").get.detail shouldBe "empty review"
+    w.callCount("--remove-label in-progress") shouldBe 0
+  }
+
+  // ---- fail-safe: non-empty review missing the VERDICT sentinel = REQUEST_CHANGES ----------
+
+  it should "fail-safe a non-empty review with no VERDICT sentinel to REQUEST_CHANGES, spending budget" in {
+    val w = TestWorld()
+    w.reviewScripts = List(
+      ReviewScript.Says("looks plausible; I forgot the sentinel."),
+      ReviewScript.Says(approveReview)
+    )
+    w.fixScripts = List(WorkerScript.Produces("1\t0\tsrc/main/scala/Fix1.scala"))
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.Success
+    w.callCount("dispatch FIX") shouldBe 1                    // the fail-safe verdict SPENDS budget
+    w.events.filter(e => e.phase == "REVIEW" && e.state == "ok").head.detail shouldBe "verdict=REQUEST_CHANGES"
+  }
+
+  it should "honour the LAST VERDICT sentinel in a review (grep | tail -1)" in {
+    val w = TestWorld()
+    w.reviewScripts = List(
+      ReviewScript.Says("draft says VERDICT: REQUEST_CHANGES but on reflection\nVERDICT: APPROVE")
+    )
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.Success
+    w.callCount("dispatch FIX") shouldBe 0
+  }
+
+  // ---- Scenario I: gate timeout (rc 124) = infra fault, no budget spent --------------------
+
+  it should "exit InfraFault on a gate timeout without spending budget (Scenario I)" in {
+    val w = TestWorld()
+    w.gateResults = List(GateResult.Timeout)
+    w.fixScripts = List(WorkerScript.Produces(newFilePatch)) // must never be consumed
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.InfraFault
+    w.callCount("dispatch FIX") shouldBe 0
+    w.callCount("dispatch REVIEW") shouldBe 0
+    w.called("gh pr create") shouldBe false
+    w.called("needs-human") shouldBe false
+    w.notifications shouldBe List("harness: infra fault — loop exited rc=50 for inspection (issue stays in-progress)")
+  }
+
+  // ---- Scenario K: class-1 + CI RED -> needs-human, NO merge, no self-repair ---------------
+
+  it should "flip to needs-human on CI RED after green local gates, never merging or self-repairing (Scenario K)" in {
+    val w = TestWorld()
+    w.labels = List("ready", "class-1")
+    w.ciWaitResult = GateResult.Red
+    w.fixScripts = List(WorkerScript.Produces(newFilePatch)) // must never be consumed
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.NeedsHuman
+    w.called("gh pr merge") shouldBe false                    // NO merge attempted
+    w.called("gh pr comment 123") shouldBe true               // PR comment explains CI red
+    w.called("gh issue edit 999 --add-label needs-human --remove-label in-progress") shouldBe true
+    w.callCount("dispatch FIX") shouldBe 0                    // never self-repair against CI
+    w.notifications shouldBe List("harness: #999 CI RED -> needs-human (PR #123)")
+  }
+
+  // ---- Scenario L: CI wait timeout -> rc 50, issue stays in-progress -----------------------
+
+  it should "exit InfraFault when the CI wait hits its bound, leaving the issue in-progress (Scenario L)" in {
+    val w = TestWorld()
+    w.labels = List("ready", "class-1")
+    w.ciWaitResult = GateResult.Timeout
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.InfraFault
+    w.called("gh pr merge") shouldBe false
+    w.called("needs-human") shouldBe false
+    w.callCount("--remove-label in-progress") shouldBe 0      // stays in-progress for resume
+    w.notifications shouldBe List("harness: infra fault — loop exited rc=50 for inspection (issue stays in-progress)")
+  }
+
+  // ---- Scenario P: CI check registers late -> the loop waits, then merges ------------------
+
+  it should "poll until the CI check registers, then watch and merge (Scenario P)" in {
+    val w = TestWorld()
+    w.labels = List("ready", "class-1")
+    w.rollupCounts = List(0, 0, 1)
+    val cfg = Config(ciAppearInterval = 1, ciAppearTimeout = 30)
+
+    val exit = runLoop(w, cfg)
+
+    exit shouldBe LoopExit.Success
+    w.callCount("gh pr view 123 --json statusCheckRollup") shouldBe 3 // polled until registered
+    w.sleeps shouldBe List(1, 1)
+    w.called("gate CI-WAIT") shouldBe true                            // watch ran only after appearance
+    w.called("gh pr merge 123 --squash --delete-branch") shouldBe true
+    w.called("needs-human") shouldBe false                            // empty rollup is not a red build
+    w.called("gh pr comment") shouldBe false
+  }
+
+  // ---- Scenario Q: CI check never registers -> rc 50, NOT needs-human ----------------------
+
+  it should "exit InfraFault when no CI check ever registers, never reading that as red (Scenario Q)" in {
+    val w = TestWorld()
+    w.labels = List("ready", "class-1")
+    w.rollupCounts = List(0)
+    val cfg = Config(ciAppearInterval = 1, ciAppearTimeout = 3)
+
+    val exit = runLoop(w, cfg)
+
+    exit shouldBe LoopExit.InfraFault
+    w.called("gate CI-WAIT") shouldBe false                   // nothing to watch
+    w.called("gh pr merge") shouldBe false
+    w.called("needs-human") shouldBe false
+    w.callCount("--remove-label in-progress") shouldBe 0
+    w.sleeps shouldBe List(1, 1, 1)
+    w.notifications shouldBe List("harness: infra fault — loop exited rc=50 for inspection (issue stays in-progress)")
+  }
+
+  // ---- Scenario N: merge not verified (PR state != MERGED) -> rc 50 ------------------------
+
+  it should "exit InfraFault when the merge cannot be verified as MERGED (Scenario N)" in {
+    val w = TestWorld()
+    w.labels = List("ready", "class-1")
+    w.prStateAnswer = "OPEN"
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.InfraFault
+    w.called("gh pr merge 123") shouldBe true                 // merge WAS attempted
+    w.callCount("--remove-label in-progress") shouldBe 0      // unverified: nothing flipped
+    w.notifications shouldBe List("harness: infra fault — loop exited rc=50 for inspection (issue stays in-progress)")
+  }
+
+  // ---- Scenario O: merge command fails -> rc 50, verify not reached ------------------------
+
+  it should "exit InfraFault when the merge command fails, before any verification (Scenario O)" in {
+    val w = TestWorld()
+    w.labels = List("ready", "class-1")
+    w.mergeSucceeds = false
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.InfraFault
+    w.called("gh pr view 123 --json state") shouldBe false    // verify not reached
+    w.callCount("--remove-label in-progress") shouldBe 0
+    w.notifications shouldBe List("harness: infra fault — loop exited rc=50 for inspection (issue stays in-progress)")
+  }
+
