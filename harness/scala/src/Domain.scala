@@ -104,6 +104,12 @@ final case class Config(
     repairBudget: Int = 2,
     maxPatchBytes: Long = 1_000_000L,
     gateCmd: String = "harness/sandbox/run-fast-gate.sh",
+    /** CI_WAIT_CMD seam (loop.sh:446): overrides the WHOLE CI-wait gate command, including the
+      * PR number (bash: `cmd="${CI_WAIT_CMD:-gh pr checks $pr_num --watch --fail-fast}"`; the
+      * override contains no pr interpolation, it replaces the default verbatim). `None` (the
+      * default) means "use the default `gh pr checks $prNum --watch --fail-fast`".
+      */
+    ciWaitCmd: Option[String] = None,
     gateTimeout: Int = 900,
     iterTimeout: Int = 1800,
     ciWaitTimeout: Int = 900,

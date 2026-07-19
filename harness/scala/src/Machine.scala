@@ -393,7 +393,7 @@ object Machine:
       Raise.raise(
         InfraFault(s"no CI check registered on PR #$prNum within ${cfg.ciAppearTimeout}s — PR open, issue stays in-progress")
       )
-    gates.run("CI-WAIT", s"gh pr checks $prNum --watch --fail-fast", cfg.ciWaitTimeout, ciLog) match
+    gates.run("CI-WAIT", cfg.ciWaitCmd.getOrElse(s"gh pr checks $prNum --watch --fail-fast"), cfg.ciWaitTimeout, ciLog) match
       case GateResult.Timeout =>
         Raise.raise(InfraFault(s"CI wait hit the ${cfg.ciWaitTimeout}s bound — PR open, issue stays in-progress"))
       case GateResult.Red =>

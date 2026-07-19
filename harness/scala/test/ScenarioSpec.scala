@@ -614,3 +614,16 @@ class ScenarioSpec extends AnyFlatSpec with Matchers:
     Machine.sanitizeDetail("clean") shouldBe "clean"
   }
 
+  // ---- CI_WAIT_CMD seam: overrides the WHOLE CI-wait gate command (loop.sh:446) ------------
+
+  it should "run the CI_WAIT_CMD override instead of the default gh pr checks command (class-1 merge)" in {
+    val w = TestWorld()
+    w.labels = List("ready", "class-1")
+
+    val exit = runLoop(w, Config(ciWaitCmd = Some("false")))
+
+    exit shouldBe LoopExit.Success
+    w.called("gate CI-WAIT cmd=false") shouldBe true
+    w.called("gate CI-WAIT cmd=gh pr checks") shouldBe false
+  }
+
