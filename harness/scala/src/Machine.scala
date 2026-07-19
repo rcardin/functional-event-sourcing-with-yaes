@@ -266,7 +266,22 @@ object Machine:
     end while
 
     // --- terminal: commit, push, PR (SUCCESS -> needs-review, FAIL -> needs-human) --------
-    if failureKind.contains(FailureKind.EmptyFix) then ???
+    // A fixer that produced no diff left the tree pristine (stagePatch reset to origin/main
+    // before it saw the empty patch), so the "nothing staged" guard below would otherwise fire
+    // first and mask the routing. Stage a small tracked marker so the needs-human audit PR
+    // still opens. In the cumulative-patch model an empty fix reverts all prior work, so this
+    // branch legitimately holds only the marker.
+    if failureKind.contains(FailureKind.EmptyFix) then
+      fs.write(
+        "FIX-EMPTY.md",
+        s"""# Fixer produced no diff
+           |
+           |The self-repair fixer returned an empty patch. In the cumulative-patch model that
+           |reverts all prior work on this branch, so the loop routed the issue to human review
+           |instead of re-gating an empty tree. Opened for the audit trail ONLY; do NOT merge.
+           |""".stripMargin
+      )
+      git.add("FIX-EMPTY.md")
     git.addAll()
     if !git.anythingStaged() then return LoopExit.NothingMade
 
@@ -287,8 +302,18 @@ object Machine:
           s"**Reviewer: APPROVE** · gate $gateStatus (containerized in-memory FAST tier green; the real-PG IT tier is judged by CI on this PR). Not class-1, so not auto-merged: a human reviews and merges."
         )
       else if failureKind.contains(FailureKind.ProtectedPath) || failureKind.contains(FailureKind.OversizedPatch)
-      then ???
-      else if failureKind.contains(FailureKind.EmptyFix) then ???
+      then
+        (
+          "needs-human",
+          s"patch guard rejection ($kindText), gate $gateStatus",
+          s"**Needs human** — the patch guard rejected the agent's patch ($kindText: a CI workflow / harness / docs / control-or-constitution file, or a patch over the size cap). The rejected change was NOT applied; this branch holds only a rejection marker and must NOT be merged."
+        )
+      else if failureKind.contains(FailureKind.EmptyFix) then
+        (
+          "needs-human",
+          s"fixer produced no diff (empty-fix), gate $gateStatus",
+          s"**Needs human**: the self-repair fixer produced no diff. In the cumulative-patch model that reverts all prior work, so this branch holds only an audit marker (the prior implementation is NOT on it). Opened for the audit trail; do NOT merge."
+        )
       else
         (
           "needs-human",
@@ -443,10 +468,38 @@ object Machine:
     // malformed patch never reaches the gates (ApplyFail = infra fault, no budget).
     val numstat = git.applyNumstat(patchOut)
     val bytes   = fs.sizeBytes(patchOut)
-    if bytes > cfg.maxPatchBytes then ???
-    if touchesProtected(numstat) then ???
+    if bytes > cfg.maxPatchBytes then
+      writeRejectMarker(s"Oversized patch: $bytes bytes exceeds the ${cfg.maxPatchBytes}-byte cap.", numstat)
+      return StageResult.Oversize
+    if touchesProtected(numstat) then
+      writeRejectMarker(
+        "Patch touches a protected path (CI workflow, harness code, docs, or a control/constitution file).",
+        numstat
+      )
+      return StageResult.Protected
     if !git.applyIndex(patchOut) then return StageResult.ApplyFail
     StageResult.Ok(patchOut)
+
+  /** On a guard rejection the tree is left pristine — a hostile or oversized patch is NEVER
+    * applied. Stage a small tracked marker instead, so the terminal still has a diff to open
+    * the audit PR with. The marker, not the rejected change, lands on the throwaway branch.
+    */
+  private def writeRejectMarker(reason: String, numstat: String)(using git: Git, fs: HarnessFs): Unit =
+    fs.write(
+      "PATCH-REJECTED.md",
+      s"""# Patch rejected by the harness guard
+         |
+         |$reason
+         |
+         |This branch is opened for the audit trail ONLY and must NOT be merged. The rejected
+         |patch was never applied to the tree. Numstat of the rejected patch (added deleted path):
+         |
+         |```
+         |${numstat.linesIterator.take(100).mkString("\n")}
+         |```
+         |""".stripMargin
+    )
+    git.add("PATCH-REJECTED.md")
 
   private[harness] def numstatPaths(numstat: String): List[String] =
     numstat.linesIterator.toList.flatMap { line =>

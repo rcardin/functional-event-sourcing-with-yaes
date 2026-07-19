@@ -444,3 +444,152 @@ class ScenarioSpec extends AnyFlatSpec with Matchers:
     w.notifications shouldBe List("harness: infra fault — loop exited rc=50 for inspection (issue stays in-progress)")
   }
 
+  // ---- Scenarios G/R: protected-path patch -> marker, gate SKIPPED, needs-human + audit PR -
+
+  it should "reject a protected-path IMPL patch: marker staged, repair loop skipped, needs-human (Scenarios G/R)" in {
+    val w = TestWorld()
+    w.implScript = WorkerScript.Produces("1\t0\tharness/evil.txt")
+    w.fixScripts = List(WorkerScript.Produces(newFilePatch)) // must never be consumed
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.NeedsHuman
+    w.callCount("dispatch FIX") shouldBe 0            // fixer = violating agent class
+    w.callCount("dispatch REVIEW") shouldBe 0         // reviewer never ran
+    w.callCount("gate FAST") shouldBe 0               // guard rejection short-circuits the gates
+    w.appliedPatches shouldBe empty                   // the rejected patch was NEVER applied
+    w.files("PATCH-REJECTED.md") should include("protected path")
+    w.files("PATCH-REJECTED.md") should include("harness/evil.txt")   // numstat in the marker
+    w.called("git add PATCH-REJECTED.md") shouldBe true
+    w.called("gh issue edit 999 --add-label needs-human --remove-label in-progress") shouldBe true
+    w.called("gh pr create") shouldBe true            // PR still opened (audit trail)
+    w.commitMessages.head should include("patch guard rejection (protected-path), gate SKIPPED")
+    w.notifications shouldBe List("harness: #999 needs-human (protected-path, gate SKIPPED)")
+    w.prBodies.head should include("must NOT be merged")
+  }
+
+  it should "guard every protected path class and let ordinary source paths through" in {
+    def numstat(p: String) = s"1\t0\t$p"
+    val protectedPaths =
+      List("harness/evil.txt", ".github/workflows/evil.yml", "docs/x.md", "CONTEXT.md", "PROMPT.md", "STOP.md")
+    protectedPaths.foreach(p => withClue(p) { Machine.touchesProtected(numstat(p)) shouldBe true })
+    List("src/main/scala/A.scala", "src/test/scala/ATest.scala", "build.sbt", "README.md")
+      .foreach(p => withClue(p) { Machine.touchesProtected(numstat(p)) shouldBe false })
+  }
+
+  // ---- Scenario T: oversized patch -> marker, gate SKIPPED, needs-human + audit PR ---------
+
+  it should "reject an oversized IMPL patch without applying it and route to needs-human (Scenario T)" in {
+    val w = TestWorld()
+    w.fixScripts = List(WorkerScript.Produces(newFilePatch)) // must never be consumed
+
+    val exit = runLoop(w, Config(maxPatchBytes = 10))        // any real patch exceeds the tiny cap
+
+    exit shouldBe LoopExit.NeedsHuman
+    w.callCount("dispatch FIX") shouldBe 0
+    w.callCount("dispatch REVIEW") shouldBe 0
+    w.callCount("gate FAST") shouldBe 0
+    w.appliedPatches shouldBe empty                          // oversized patch NOT applied
+    w.files("PATCH-REJECTED.md") should include("Oversized patch")
+    w.called("gh issue edit 999 --add-label needs-human --remove-label in-progress") shouldBe true
+    w.called("gh pr create") shouldBe true
+    w.commitMessages.head should include("patch guard rejection (oversized-patch), gate SKIPPED")
+    w.notifications shouldBe List("harness: #999 needs-human (oversized-patch, gate SKIPPED)")
+  }
+
+  // ---- Scenario S: patch that fails to apply -> rc 50, no budget spent ---------------------
+
+  it should "treat an apply conflict as an infra fault, never a gate failure (Scenario S)" in {
+    val w = TestWorld()
+    w.applySucceeds = false                                  // valid patch, conflicts with the base
+    w.fixScripts = List(WorkerScript.Produces(newFilePatch)) // must never be consumed
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.InfraFault
+    w.callCount("dispatch FIX") shouldBe 0                   // no budget spent
+    w.callCount("gate FAST") shouldBe 0                      // apply precedes the gates
+    w.called("gh pr create") shouldBe false
+    w.called("needs-human") shouldBe false
+    w.callCount("--remove-label in-progress") shouldBe 0
+    w.notifications shouldBe List("harness: infra fault — loop exited rc=50 for inspection (issue stays in-progress)")
+  }
+
+  it should "fail open on an unparseable patch: empty numstat passes the guard, apply then faults (backstop)" in {
+    val w = TestWorld()
+    w.implScript = WorkerScript.Produces("this is not a unified diff at all")
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.InfraFault                        // ApplyFail, never a gate failure
+    w.callCount("gate FAST") shouldBe 0
+    w.files.contains("PATCH-REJECTED.md") shouldBe false     // guard passed (fail-open)
+    w.callCount("dispatch FIX") shouldBe 0
+  }
+
+  // ---- empty IMPL patch -> rc 30, no PR, issue stays in-progress ---------------------------
+
+  it should "exit NothingMade (rc 30) on an empty IMPL patch, leaving the issue in-progress" in {
+    val w = TestWorld()
+    w.implScript = WorkerScript.Empty
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.NothingMade
+    exit.rc shouldBe 30
+    w.called("gh pr create") shouldBe false
+    w.callCount("gate FAST") shouldBe 0
+    w.callCount("--remove-label in-progress") shouldBe 0
+    w.events.find(e => e.phase == "IMPL" && e.state == "ok").get.detail shouldBe "no diff"
+    w.notifications shouldBe empty
+  }
+
+  // ---- empty FIX patch -> FIX-EMPTY marker, needs-human ------------------------------------
+
+  it should "route an empty FIX patch to needs-human with the FIX-EMPTY audit marker" in {
+    val w = TestWorld()
+    w.gateResults = List(GateResult.Red)
+    w.fixScripts = List(WorkerScript.Empty)                  // the fixer reverted all prior work
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.NeedsHuman
+    w.callCount("dispatch FIX") shouldBe 1
+    w.files("FIX-EMPTY.md") should include("Fixer produced no diff")
+    w.called("git add FIX-EMPTY.md") shouldBe true
+    w.called("gh issue edit 999 --add-label needs-human --remove-label in-progress") shouldBe true
+    w.called("gh pr create") shouldBe true                   // audit PR with only the marker
+    w.commitMessages.head should include("fixer produced no diff (empty-fix), gate RED")
+    w.notifications shouldBe List("harness: #999 needs-human (empty-fix, gate RED)")
+    w.prBodies.head should include("the prior implementation is NOT on it")
+  }
+
+  // ---- guard rejection on a FIX patch -> terminal FAIL, no further repair ------------------
+
+  it should "route a protected-path FIX patch straight to needs-human without further repair" in {
+    val w = TestWorld()
+    w.gateResults = List(GateResult.Red)
+    w.fixScripts = List(
+      WorkerScript.Produces("1\t0\tharness/evil.txt"),
+      WorkerScript.Produces(newFilePatch)                    // must never be consumed
+    )
+
+    val exit = runLoop(w)
+
+    exit shouldBe LoopExit.NeedsHuman
+    w.callCount("dispatch FIX") shouldBe 1                   // the rejection breaks the loop
+    // only the initial IMPL patch was ever applied; the rejected FIX patch never was
+    w.appliedPatches shouldBe List("harness/logs/issue-999-iter1.impl.patch")
+    w.files("PATCH-REJECTED.md") should include("protected path")
+    w.called("gh issue edit 999 --add-label needs-human --remove-label in-progress") shouldBe true
+    w.commitMessages.head should include("patch guard rejection (protected-path), gate RED")
+    w.notifications shouldBe List("harness: #999 needs-human (protected-path, gate RED)")
+  }
+
+  // ---- status-event hygiene ----------------------------------------------------------------
+
+  it should "sanitize status-event details (strip backslash, double quote, newlines)" in {
+    Machine.sanitizeDetail("a\\b\"c\nd") shouldBe "abc d"
+    Machine.sanitizeDetail("clean") shouldBe "clean"
+  }
+
