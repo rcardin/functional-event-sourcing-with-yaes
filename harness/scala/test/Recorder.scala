@@ -95,9 +95,9 @@ final class TestWorld:
   var sleeps: List[Int]            = Nil
 
   private def isNumstatLine(l: String): Boolean =
-    l.split('\t') match
-      case Array(a, d, p) => (a.matches("\\d+") || a == "-") && (d.matches("\\d+") || d == "-") && p.nonEmpty
-      case _              => false
+    NumstatRow.parse(l).exists { row =>
+      (row.added.matches("\\d+") || row.added == "-") && (row.deleted.matches("\\d+") || row.deleted == "-")
+    }
 
   // ---- capability instances ---------------------------------------------------------------
   val github: GitHub = new GitHub:

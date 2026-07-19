@@ -72,6 +72,18 @@ enum Role:
 enum Template:
   case Iterate, Fix, Review
 
+/** One line of `git apply --numstat` output: "<added>\t<deleted>\t<path>". `added`/`deleted`
+  * stay `String` (not `Int`) because binary files report "-" instead of a line count.
+  */
+final case class NumstatRow(added: String, deleted: String, path: String)
+
+object NumstatRow:
+  /** Parses one numstat line; `None` on malformed input (wrong arity) or an empty path. */
+  def parse(line: String): Option[NumstatRow] =
+    line.split('\t') match
+      case Array(added, deleted, path) if path.nonEmpty => Some(NumstatRow(added, deleted, path))
+      case _                                            => None
+
 /** One status.jsonl event (ts/pid/run are live-handler concerns, added in slice 2). */
 final case class StatusEvent(
     iter: Int,

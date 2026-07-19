@@ -44,6 +44,27 @@ class ScenarioSpec extends AnyFlatSpec with Matchers:
     w.called("gh issue list --label ready") shouldBe true
   }
 
+  it should "resume automatically on the very next tick once a US goes ready, with no manual reset" in {
+    val w = TestWorld()
+    w.inProgress = None
+    w.ready = None
+
+    val first = runLoop(w)
+
+    first shouldBe LoopExit.Idle
+    first.rc shouldBe 11
+    w.files shouldBe empty
+
+    // Now a US goes ready: the very next tick must resume on its own.
+    w.ready = Some(999)
+
+    val second = runLoop(w)
+
+    second shouldBe LoopExit.Success
+    second.rc shouldBe 0
+    w.called("gh issue edit 999 --add-label in-progress --remove-label ready") shouldBe true
+  }
+
   it should "resume an in-progress issue before considering ready ones" in {
     val w = TestWorld()
     w.inProgress = Some(777)

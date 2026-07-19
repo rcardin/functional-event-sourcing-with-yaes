@@ -77,7 +77,7 @@ enum LoopExit(val rc: Int):
   case InfraFault   extends LoopExit(50)  // budget untouched, no PR, label untouched
 
 enum StageResult:
-  case Ok(patch: os.Path)
+  case Ok(patch: String)               // slice 1: no os-lib dependency yet, see below
   case Empty
   case Timeout                        // infra
   case ApplyFail                      // infra
@@ -99,19 +99,36 @@ it to rc 50. By construction no `Raise` path can reach `budget -= 1` or a FIX di
 
 | Capability | Operations | Live handler |
 |---|---|---|
-| `GitHub` | pickIssue (in-progress, else oldest ready), issueBody, labels, editLabels, createPr, prComment, prState, checksRollupCount, comment | `gh` subprocess |
+| `GitHub` | inProgressIssue, oldestReadyIssue (resume in-progress first, decided in Machine not the handler), issueBody, labels, editLabels, createPr, prComment, prState, checksRollupCount, comment | `gh` subprocess |
 | `Git` | statusClean, fetchOriginMain, checkoutBranch, resetHard+clean, applyNumstat, applyIndex, addAll, diffCached, commit, push | `git` subprocess |
 | `AgentDispatch` | worker(role, promptFile, patchOut, currentPatch), review(prompt) | wrappers via seam env-var overrides or `sandbox/run-*.sh` under `ITER_TIMEOUT` |
 | `GateRunner` | run(cmd, timeout, logFile) | subprocess under `gtimeout` |
 | `StatusLog` | phase(phase, state, logfile, detail) | O_APPEND single-write to `status.jsonl` |
 | `Notify` | notify(msg) | `NOTIFY_CMD` / ntfy.sh / log-only; failures swallowed |
 | `HarnessFs` | prompt templating (`{{KEY}}` splice), log files, markers (PATCH-REJECTED.md, FIX-EMPTY.md), STOP.md check | `os-lib` / java.nio |
-| `Env`, `Clock` | env vars, epoch, sleeps for CI-appear poll | yaes `System` / `Clock` where they fit |
+| `Clock` | sleeps for CI-appear poll | bespoke one-method trait, not yaes `System`/`Clock` (see below) |
 
 Tests replace every capability with scripted in-memory handlers plus a recorder, so scenarios
 assert on both the outcome (exit code, labels flipped, PR opened, budget left) and the
 interaction sequence (no FIX after infra fault, no merge without verification, marker staged
 on guard rejection).
+
+### Slice-1 deviations
+
+Three places where the built code took a simpler path than this doc sketched. All three are
+open to revisiting in slice 2, not closed decisions.
+
+- **`StageResult.Ok` carries a `String`, not `os.Path`.** Slice 1 never took os-lib as a
+  dependency; the patch text is a plain string end to end. A richer path type can arrive
+  once a live filesystem handler needs one.
+- **`pickIssue` is two capability methods, `inProgressIssue` and `oldestReadyIssue`, not
+  one.** This keeps the resume-in-progress-first decision inside `Machine`, where the
+  scenario tests exercise it, instead of burying it in a handler's own logic.
+- **No `Env` capability, and `Clock` is bespoke rather than yaes's `System`/`Clock`.**
+  Config is a hardcoded `Config` case class carrying the same defaults this doc lists;
+  `Clock` is a one-method trait (`sleepSeconds`) that in-memory tests script directly.
+  Env var parsing and a real `Env` capability, if one is still warranted, arrive with
+  `Main` in slice 2.
 
 ### Semantics ported exactly (the subtle ones)
 
