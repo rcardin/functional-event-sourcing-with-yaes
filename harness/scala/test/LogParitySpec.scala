@@ -78,7 +78,7 @@ class LogParitySpec extends AnyFlatSpec with Matchers:
     w.files shouldBe empty // still no sentinel: logging is not writing
   }
 
-  it should "carry the needs-human needle (statemachine-test.sh:184)" in {
+  it should "carry the needs-human needle (statemachine-test.sh:212)" in {
     val w = TestWorld()
     w.gateResults = List(GateResult.Red, GateResult.Red, GateResult.Red)
 
