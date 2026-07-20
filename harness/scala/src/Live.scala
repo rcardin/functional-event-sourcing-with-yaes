@@ -45,7 +45,7 @@ final class LiveHarnessFs(root: Path) extends HarnessFs:
 
   /** loop.sh:623 checks `$REPO_ROOT/STOP.md`, i.e. repo-root-relative, not under harness/. */
   def stopRequested(): Boolean =
-    Files.exists(root.resolve("STOP.md"))
+    Files.isRegularFile(root.resolve("STOP.md"))
 
   /** loop.sh:116-118: ITERATE_PROMPT/FIX_PROMPT/REVIEW_PROMPT are `$SCRIPT_DIR/<name>.md`, i.e.
     * `harness/<name>.md` relative to the repo root (`$SCRIPT_DIR` is the harness dir).
