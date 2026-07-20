@@ -41,7 +41,7 @@ class LogParitySpec extends AnyFlatSpec with Matchers:
     w.logged("FIX worker timed out") shouldBe true
   }
 
-  it should "carry the gate-timeout needle (statemachine-test.sh:344)" in {
+  it should "carry the gate-timeout needle (statemachine-test.sh:372)" in {
     val w = TestWorld()
     w.gateResults = List(GateResult.Timeout)
 
