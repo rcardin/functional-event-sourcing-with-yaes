@@ -390,6 +390,10 @@ The loop pins these itself (override via env if your paths differ):
 - **`scala-cli`** — the loop IS a Scala program; `loop.sh` exits `1` immediately if it is not on
   `PATH` (`brew install Coursier/formulas/coursier && cs setup`, or `brew install scala-cli`).
   Compilation is cached, so per-tick startup is ~1 s against a 30-minute iteration.
+  Note that exit `1` is therefore ambiguous: besides the harness's own "nothing staged / fatal
+  preflight" terminal, it is also what `scala-cli` returns when it fails to compile the harness
+  or to provision the JVM. In that case the loop never started at all, and `scala-cli`'s own
+  output on the way out says which of the two happened.
 - **JDK 25** (`.sdkmanrc` pins `java=25.0.2-open`). yaes 0.20.0 binds JDK 25's
   `StructuredTaskScope` API; under a newer default JDK (e.g. 26) **every** test aborts with
   `NoSuchMethodError` — a false RED that masks the real signal. Two separate pins: the loop
@@ -460,12 +464,13 @@ HARNESS_IMPL=bash harness/test/statemachine-test.sh   # same 142 against the ret
 `HARNESS_IMPL` is the Scala rewrite's **parity oracle** switch (design:
 `docs/superpowers/specs/2026-07-19-harness-scala-rewrite-design.md`). `scala` (the default since
 slice 4) drives `scala-cli run harness/scala`, which is what `loop.sh` now execs; `bash` drives
-`loop-bash.sh` through the identical scenarios, stubs and assertions. Both must read 142/142 — that equality, not a diff of the two sources, is what says the
-port is faithful. Note that the suite scores the harness on its **stderr** as well as its
-behaviour (ten `checkc ... loop.out` assertions), so the `log()` wording on those paths is
-asserted behaviour in both implementations. Eight of those needles come out of the loop's own log
-stream and are pinned in-memory by `harness/scala/test/LogParitySpec.scala`; the other two are the
-driver's exit-path line, pinned by `harness/scala/src/Main.scala` and `MainSpec.scala`.
+`loop-bash.sh` through the identical scenarios, stubs and assertions. Both must read 142/142 —
+that equality, not a diff of the two sources, is what says the port is faithful. Note that the
+suite scores the harness on its **stderr** as well as its behaviour (ten `checkc ... loop.out`
+assertions), so the `log()` wording on those paths is asserted behaviour in both implementations.
+Eight of those needles come out of the loop's own log stream and are pinned in-memory by
+`harness/scala/test/LogParitySpec.scala`; the other two are the driver's exit-path line, pinned
+by `harness/scala/src/Main.scala` and `MainSpec.scala`.
 
 Env: `MAX_ITERS` (default 1), `ITER_TIMEOUT` s (default 1800), `GATE_TIMEOUT` s (default 900),
 `REPAIR_BUDGET` (default 2), `DRY_RUN=1`. `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` is

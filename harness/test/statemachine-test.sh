@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Drives harness/loop.sh through its v1 state machine in a throwaway sandbox.
+# Parity oracle: drives whichever loop implementation HARNESS_IMPL selects through the v1 state
+# machine in a throwaway sandbox — scala (default, via harness/loop.sh) or bash (harness/loop-bash.sh).
 # Stubs gh (fake bin on PATH), the gate (GATE_CMD), and the three claude dispatches
 # (IMPL_CMD/FIX_CMD/REVIEW_CMD). No real GitHub, no Opus tokens.
 set -euo pipefail

@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 #
+# RETIRING bash reference implementation of the Ralph loop. This file is NO LONGER the harness
+# entry point: `harness/loop.sh` is, and it is a shim that execs the Scala loop in
+# `harness/scala`. Nothing invokes this script except the parity oracle
+# `harness/test/statemachine-test.sh` in its HARNESS_IMPL=bash mode, which replays every
+# scenario against both implementations. It is kept only as the parity baseline and is slated
+# for deletion once a real user story merges under the Scala loop. Do not add behaviour here;
+# add it in harness/scala and let the oracle prove the two agree.
+#
+# The design history below documents the state machine both implementations share.
+#
 # v2 Ralph loop — v1 (reviewer + tamper + self-repair) + Testcontainers tier split.
 # Implements step v2 of docs/autonomous-loop-harness.md and
 # docs/superpowers/specs/2026-07-01-harness-v2-testcontainers-split-design.md.
@@ -76,7 +86,7 @@
 # The loop never lets the model choose what to work on: bash resolves all state with `gh`
 # queries and dispatches narrow, fresh `claude -p` tasks. Every dispatch is fresh context.
 #
-# Usage:   harness/loop.sh
+# Usage:   HARNESS_IMPL=bash harness/test/statemachine-test.sh   (parity oracle only)
 # Env:     MAX_ITERS      hard cap on US count               (default 1)
 #          ITER_TIMEOUT   per-dispatch agent timeout, s      (default 1800)
 #          GATE_TIMEOUT   per-fast-gate sbt budget, s        (default 900)

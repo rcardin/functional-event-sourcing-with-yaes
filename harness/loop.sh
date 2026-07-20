@@ -15,8 +15,9 @@
 #      the harness works from any subdirectory exactly as it always did.
 #
 # Env interface and exit codes are unchanged; every variable below is read by harness/scala's
-# Main.parseEnv, not here. The shim passes NO arguments — the loop consumes none, by design (it
-# never lets the model or the operator choose what to work on; all state is resolved via `gh`).
+# Main.parseEnv, not here. Caller arguments are forwarded past `--` so scala-cli never claims
+# them; the loop consumes none, by design (it never lets the model or the operator choose what to
+# work on; all state is resolved via `gh`).
 #
 # Usage:   harness/loop.sh
 # Env:     MAX_ITERS      hard cap on US count               (default 1)
@@ -27,6 +28,9 @@
 #          MAX_PATCH_BYTES size cap on an extracted patch, B (default 1000000)
 #          JAVA_HOME_PINNED  JDK 25 home stamped onto every child process
 #                            (default $HOME/.sdkman/candidates/java/25.0.2-open)
+#          CLAUDE_CODE_OAUTH_TOKEN (preferred) or ANTHROPIC_API_KEY: the dedicated, spend-capped
+#                            Claude credential handed to the containerized worker/fixer. At least
+#                            one is REQUIRED at startup; without either the loop dies.
 #          -- test seams (default to the real thing; overridden by the state-machine test) --
 #          GATE_CMD       the fast (src/test) gate command   (default: harness/sandbox/run-fast-gate.sh,
 #                                                             a containerized `sbt compile test`)
@@ -62,4 +66,4 @@ command -v scala-cli >/dev/null || {
 #
 # `exec` so the loop is this process: signals, exit code and the terminal all belong to it directly,
 # with no bash wrapper left to swallow them.
-exec scala-cli run "$SCRIPT_DIR/scala"
+exec scala-cli run "$SCRIPT_DIR/scala" -- "$@"
