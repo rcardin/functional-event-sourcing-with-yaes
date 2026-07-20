@@ -841,6 +841,23 @@ class LiveProcSpec extends AnyFlatSpec with Matchers:
     readString(callsFile) shouldBe ""
   }
 
+  // loop.sh prepends FAKEBIN to PATH process-wide, so an eval'd CI_APPEAR_CMD that shells out to
+  // an unqualified `gh` hits the fake. The seam arm has to pass `extraPath` like every other
+  // LiveGitHub subprocess call, or the Scala harness silently reaches the REAL `gh` here.
+  it should "give the CI_APPEAR_CMD seam's child the extraPath fixture directory on its PATH" in {
+    val root    = tempRoot()
+    val seamBin = Files.createTempDirectory("ci-appear-bin")
+    writeExecutable(seamBin, "gh", "#!/usr/bin/env bash\necho 7\n")
+    val gh = LiveGitHub(
+      root,
+      ciAppearCmd = Some("gh pr view \"$pr_num\" --json statusCheckRollup"),
+      mergeCmd = None,
+      extraPath = Some(seamBin.toString)
+    )
+
+    gh.checksRollupCount(42) shouldBe Some(7)
+  }
+
   private val ciLogRel = "harness/logs/issue-42.ci-wait.log"
 
   /** Seeds the CI-wait log with what the CI watch would already have written, so an append can be

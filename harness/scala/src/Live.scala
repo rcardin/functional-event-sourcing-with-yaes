@@ -852,7 +852,12 @@ final class LiveGitHub(
     val out = ciAppearSeam match
       case Some(cmd) =>
         LiveProc
-          .run(root, Seq("bash", "-c", cmd), env = Map("pr_num" -> pr.toString))
+          .run(
+            root,
+            Seq("bash", "-c", cmd),
+            env = Map("pr_num" -> pr.toString),
+            pathPrepend = extraPath
+          )
           .stdoutTrimmedTrailingNewlines
       case None =>
         gh(
