@@ -18,7 +18,7 @@ import scala.util.control.NonFatal
   * `[loop HH:MM:SS] <msg>`, written to stderr, verbatim parity, since the slice 3 parity oracle
   * greps log lines.
   */
-object LiveLog:
+object LiveLog extends Log:
   private val fmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")
 
   def log(msg: String): Unit =

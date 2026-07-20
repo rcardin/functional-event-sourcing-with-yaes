@@ -19,7 +19,8 @@ class ScenarioSpec extends AnyFlatSpec with Matchers:
       w.status,
       w.notifier,
       w.fs,
-      w.clock
+      w.clock,
+      w.logger
     )
 
   // ---- STOP.md ----------------------------------------------------------------------------

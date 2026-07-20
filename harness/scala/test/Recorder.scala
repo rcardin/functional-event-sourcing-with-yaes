@@ -45,9 +45,17 @@ final class TestWorld:
   val events: mutable.ArrayBuffer[StatusEvent]   = mutable.ArrayBuffer.empty
   val files: mutable.Map[String, String]         = mutable.Map.empty
 
+  /** Everything the machine wrote to the operator log stream, in order. */
+  val logLines: mutable.ArrayBuffer[String] = mutable.ArrayBuffer.empty
+
   def record(c: String): Unit         = calls += c
   def called(needle: String): Boolean = calls.exists(_.contains(needle))
   def callCount(needle: String): Int  = calls.count(_.contains(needle))
+
+  /** The in-memory equivalent of the bash suite's `checkc NEEDLE "$SB/loop.out"`: a substring
+    * search over the whole log stream, which is exactly what the oracle's `grep -q` does.
+    */
+  def logged(needle: String): Boolean = logLines.exists(_.contains(needle))
 
   /** Phase sequence with consecutive duplicates collapsed (the bash suite's phase_seq). */
   def phaseSeq: List[String] =
@@ -224,3 +232,6 @@ final class TestWorld:
 
   val clock: Clock = new Clock:
     def sleepSeconds(s: Int): Unit = sleeps = sleeps :+ s
+
+  val logger: Log = new Log:
+    def log(msg: String): Unit = logLines += msg

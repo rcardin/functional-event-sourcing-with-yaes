@@ -131,3 +131,17 @@ trait HarnessFs:
 /** Wall-clock waits (CI-appear poll). In-memory tests script it; slice 2 sleeps for real. */
 trait Clock:
   def sleepSeconds(s: Int): Unit
+
+/** The operator-facing log stream (bash's `log()` helper, loop.sh:141 — `[loop HH:MM:SS] msg` on
+  * stderr).
+  *
+  * A capability rather than a direct `LiveLog` call inside Machine for the same reason every other
+  * side effect is one: Machine stays a pure decision function over its `using` clause, and the
+  * scenario tests can assert on what was logged. That matters more here than it looks — the bash
+  * parity oracle (harness/test/statemachine-test.sh) greps this stream for load-bearing phrases
+  * (`half-finished worker must not reach the gates`, `protected-path`, `oversized-patch`, ...), so
+  * these strings are asserted behaviour, not decoration. The wording is copied from loop.sh
+  * verbatim; changing one is a parity break, not a style change.
+  */
+trait Log:
+  def log(msg: String): Unit
