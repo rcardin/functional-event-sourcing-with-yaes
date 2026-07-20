@@ -59,7 +59,7 @@ class LogParitySpec extends AnyFlatSpec with Matchers:
     w.logged("protected-path") shouldBe true
   }
 
-  it should "carry the oversized-patch needle (statemachine-test.sh:572)" in {
+  it should "carry the oversized-patch needle (statemachine-test.sh:600)" in {
     val w = TestWorld()
 
     w.runLoop(Config(maxPatchBytes = 10)) shouldBe LoopExit.NeedsHuman
