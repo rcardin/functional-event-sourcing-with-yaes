@@ -83,10 +83,11 @@ final class TestWorld:
   var rollupCounts: List[Int]           = List(1)   // last value repeats
   var prUrl: String                     = "https://github.com/test/test/pull/123"
   var prStateAnswer: String             = "MERGED"
-  var mergeSucceeds: Boolean            = true
+  var mergeRc: Int                      = 0        // bash's $merge_rc; nonzero = merge cmd failed
   var applySucceeds: Boolean            = true
   var cleanTree: Boolean                = true
   var fetchSucceeds: Boolean            = true
+  var labelEditSucceeds: Boolean        = true
   var blockedIssues: List[Int]          = Nil
   var issueBodies: Map[Int, String]     = Map.empty
   var issueStates: Map[Int, String]     = Map.empty // default CLOSED
@@ -128,7 +129,7 @@ final class TestWorld:
     def editLabels(issue: Int, add: List[String], remove: List[String]): Boolean =
       val a = add.map(l => s" --add-label $l").mkString
       val r = remove.map(l => s" --remove-label $l").mkString
-      record(s"gh issue edit $issue$a$r"); true
+      record(s"gh issue edit $issue$a$r"); labelEditSucceeds
     def openBlockedIssues(): List[Int] =
       record("gh issue list --label blocked"); blockedIssues
     def createPr(branch: String, title: String, body: String): String =
@@ -143,8 +144,8 @@ final class TestWorld:
         case Nil      => Some(1)
         case h :: Nil => Some(h)
         case h :: t   => rollupCounts = t; Some(h)
-    def merge(pr: Int, ciLog: String): Boolean =
-      record(s"gh pr merge $pr --squash --delete-branch >>$ciLog"); mergeSucceeds
+    def merge(pr: Int, ciLog: String): Int =
+      record(s"gh pr merge $pr --squash --delete-branch >>$ciLog"); mergeRc
 
   val git: Git = new Git:
     def statusClean(): Boolean                  = { record("git status --porcelain"); cleanTree }
@@ -235,3 +236,27 @@ final class TestWorld:
 
   val logger: Log = new Log:
     def log(msg: String): Unit = logLines += msg
+
+  // ---- driving the machine ----------------------------------------------------------------
+
+  /** Runs one iteration of the machine against this world's scripted capabilities.
+    *
+    * The `using` clause lives here rather than in each spec so that adding a capability to
+    * `Machine` is a one-line edit instead of a lockstep edit across every spec that drives it.
+    * Per-scenario differences stay at the call site: `w.runLoop()` for the defaults,
+    * `w.runLoop(Config(dryRun = true))` to vary config, `w.runLoop(iteration = 2)` to vary the
+    * iteration number the machine reports.
+    */
+  def runLoop(cfg: Config = Config(), iteration: Int = 1): LoopExit =
+    Machine.runOnce(iteration)(using
+      cfg,
+      github,
+      git,
+      agents,
+      gates,
+      status,
+      notifier,
+      fs,
+      clock,
+      logger
+    )

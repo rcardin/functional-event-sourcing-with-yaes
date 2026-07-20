@@ -408,9 +408,10 @@ HARNESS_IMPL=scala harness/test/statemachine-test.sh   # score the Scala port on
 `loop.sh`; `scala` drives `scala-cli run harness/scala` through the identical scenarios, stubs and
 assertions. Both must read 142/142 — that equality, not a diff of the two sources, is what says the
 port is faithful. Note that the suite scores the harness on its **stderr** as well as its
-behaviour (eight `checkc ... loop.out` assertions), so the `log()` wording on those paths is
-asserted behaviour in both implementations; `harness/scala/test/LogParitySpec.scala` pins the same
-needles in-memory.
+behaviour (ten `checkc ... loop.out` assertions), so the `log()` wording on those paths is
+asserted behaviour in both implementations. Eight of those needles come out of the loop's own log
+stream and are pinned in-memory by `harness/scala/test/LogParitySpec.scala`; the other two are the
+driver's exit-path line, pinned by `harness/scala/src/Main.scala` and `MainSpec.scala`.
 
 Env: `MAX_ITERS` (default 1), `ITER_TIMEOUT` s (default 1800), `GATE_TIMEOUT` s (default 900),
 `REPAIR_BUDGET` (default 2), `DRY_RUN=1`. `ANTHROPIC_API_KEY` is required (handed to the
