@@ -67,7 +67,7 @@ class LogParitySpec extends AnyFlatSpec with Matchers:
     w.logged("oversized-patch") shouldBe true
   }
 
-  it should "carry the idle needle (statemachine-test.sh:264)" in {
+  it should "carry the idle needle (statemachine-test.sh:292)" in {
     val w = TestWorld()
     w.inProgress = None
     w.ready = None
