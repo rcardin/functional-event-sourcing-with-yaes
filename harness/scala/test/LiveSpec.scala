@@ -19,8 +19,8 @@ class LiveSpec extends AnyFlatSpec with Matchers:
   // ---- LiveStatusLog -----------------------------------------------------------------------
 
   "LiveStatusLog" should "emit one JSON line with the exact field order/types for a fixed event" in {
-    val root = tempRoot()
-    val log = LiveStatusLog(root, "1234567890")
+    val root  = tempRoot()
+    val log   = LiveStatusLog(root, "1234567890")
     val event = StatusEvent(
       iter = 3,
       issue = "999",
@@ -42,8 +42,8 @@ class LiveSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "append two events as two lines" in {
-    val root = tempRoot()
-    val log = LiveStatusLog(root, "1")
+    val root  = tempRoot()
+    val log   = LiveStatusLog(root, "1")
     val event = StatusEvent(0, "1", "FAST", "START", 0, 0, "", "")
 
     log.append(event)
@@ -54,8 +54,8 @@ class LiveSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "sanitize detail: strip backslashes, strip double quotes, collapse newlines to spaces" in {
-    val root = tempRoot()
-    val log = LiveStatusLog(root, "1")
+    val root  = tempRoot()
+    val log   = LiveStatusLog(root, "1")
     val event = StatusEvent(0, "1", "FAST", "START", 0, 0, "", """a\b"c\nd""" + "\n" + "e")
 
     log.append(event)
@@ -66,10 +66,10 @@ class LiveSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "relativize a logfile path with a leading root/ prefix" in {
-    val root = tempRoot()
-    val log = LiveStatusLog(root, "1")
+    val root     = tempRoot()
+    val log      = LiveStatusLog(root, "1")
     val absolute = root.resolve("harness/logs/x.log").toString
-    val event = StatusEvent(0, "1", "FAST", "START", 0, 0, absolute, "")
+    val event    = StatusEvent(0, "1", "FAST", "START", 0, 0, absolute, "")
 
     log.append(event)
 
@@ -78,8 +78,8 @@ class LiveSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "pass a foreign absolute logfile path through unchanged" in {
-    val root = tempRoot()
-    val log = LiveStatusLog(root, "1")
+    val root  = tempRoot()
+    val log   = LiveStatusLog(root, "1")
     val event = StatusEvent(0, "1", "FAST", "START", 0, 0, "/etc/foreign/path.log", "")
 
     log.append(event)
@@ -101,8 +101,8 @@ class LiveSpec extends AnyFlatSpec with Matchers:
   // ---- LiveNotify ---------------------------------------------------------------------------
 
   "LiveNotify" should "run the NOTIFY_CMD bash stub with $msg exported, verbatim bash-suite shape" in {
-    val root = tempRoot()
-    val out = root.resolve("notify.log")
+    val root   = tempRoot()
+    val out    = root.resolve("notify.log")
     val logged = scala.collection.mutable.ArrayBuffer.empty[String]
     val notify = LiveNotify(
       notifyCmd = Some(s"""printf "%s\n" "$$msg" >> "$out""""),
@@ -147,7 +147,7 @@ class LiveSpec extends AnyFlatSpec with Matchers:
 
   "LiveHarnessFs" should "create parent directories on write and round-trip through read" in {
     val root = tempRoot()
-    val fs = LiveHarnessFs(root)
+    val fs   = LiveHarnessFs(root)
 
     fs.write("harness/logs/issue-999.prompt.txt", "hello")
 
@@ -156,7 +156,7 @@ class LiveSpec extends AnyFlatSpec with Matchers:
 
   it should "report the correct byte size" in {
     val root = tempRoot()
-    val fs = LiveHarnessFs(root)
+    val fs   = LiveHarnessFs(root)
     fs.write("a.txt", "hello")
 
     fs.sizeBytes("a.txt") shouldBe 5L
@@ -164,7 +164,7 @@ class LiveSpec extends AnyFlatSpec with Matchers:
 
   it should "report stopRequested false, then true after STOP.md is created" in {
     val root = tempRoot()
-    val fs = LiveHarnessFs(root)
+    val fs   = LiveHarnessFs(root)
 
     fs.stopRequested() shouldBe false
 

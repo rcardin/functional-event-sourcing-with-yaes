@@ -5,17 +5,17 @@ import scala.util.control.NonFatal
 
 /** Entry point: `scala-cli run harness/scala`. Env parsing, preflight, and the MAX_ITERS driver
   * loop that reproduces harness/loop.sh's outer shell (loop.sh:100-215 for startup/preflight,
-  * loop.sh:925-944 for the driver) over the Machine/Live wiring tasks 1-2 built. No CLI args
-  * are consumed; everything is env, exactly like bash.
+  * loop.sh:925-944 for the driver) over the Machine/Live wiring tasks 1-2 built. No CLI args are
+  * consumed; everything is env, exactly like bash.
   */
 object Main:
 
   // ---- Part C: pure env parsing, testable without touching the real environment ------------
 
-  /** Everything `Main` needs from the environment, parsed once. Mirrors loop.sh:100-139's
-    * env-var defaulting block; `Config` (Domain.scala) carries the per-iteration knobs, this
-    * carries the driver-level (`maxIters`) and Live-handler-only (seams, ntfyTopic,
-    * gateOverridden) knobs Config has no field for.
+  /** Everything `Main` needs from the environment, parsed once. Mirrors loop.sh:100-139's env-var
+    * defaulting block; `Config` (Domain.scala) carries the per-iteration knobs, this carries the
+    * driver-level (`maxIters`) and Live-handler-only (seams, ntfyTopic, gateOverridden) knobs
+    * Config has no field for.
     */
   final case class ParsedEnv(
       cfg: Config,
@@ -31,14 +31,15 @@ object Main:
   )
 
   def parseEnv(env: Map[String, String]): ParsedEnv =
-    def str(key: String): Option[String]       = env.get(key).filter(_.nonEmpty)
-    def int(key: String, default: Int): Int    = env.get(key).flatMap(_.toIntOption).getOrElse(default)
-    def long(key: String, default: Long): Long = env.get(key).flatMap(_.toLongOption).getOrElse(default)
+    def str(key: String): Option[String]    = env.get(key).filter(_.nonEmpty)
+    def int(key: String, default: Int): Int = env.get(key).flatMap(_.toIntOption).getOrElse(default)
+    def long(key: String, default: Long): Long =
+      env.get(key).flatMap(_.toLongOption).getOrElse(default)
 
     // loop.sh:129-133: GATE_OVERRIDDEN is captured BEFORE GATE_CMD's own default is applied, so
     // setting GATE_CMD to its own default value still counts as "overridden".
     val gateOverridden = env.get("GATE_CMD").exists(_.nonEmpty)
-    val gateCmd         = str("GATE_CMD").getOrElse(Config().gateCmd)
+    val gateCmd        = str("GATE_CMD").getOrElse(Config().gateCmd)
 
     val cfg = Config(
       dryRun = env.getOrElse("DRY_RUN", "0") == "1", // loop.sh:654: `[[ "$DRY_RUN" == "1" ]]`
@@ -68,11 +69,21 @@ object Main:
 
   // ---- `command -v` equivalent ---------------------------------------------------------------
 
-  /** Scans `pathEnv` (colon-separated, like `$PATH`) for an executable named `name`; `exists` is
-    * the file-executable predicate, injected so this stays testable without the real host PATH
-    * or filesystem.
+  /** Scans `pathEnv` (colon-separated, like `$PATH`) for an executable named `name`.
+    *
+    * TEST AFFORDANCE, deliberate: `exists` is the file-executable probe, injected rather than
+    * called directly so the scan is a pure function of its arguments and can be tested against
+    * invented PATH strings without depending on what the host machine happens to have installed.
+    * The sibling of the `pathPrepend` / `extraPath` seam in `Live.scala`: both exist so tests can
+    * substitute the filesystem's answer about a binary. It differs in shape only, having no `None`
+    * default because there is no meaningful no-op probe. THE ONLY PRODUCTION CALLER IS `onRealPath`
+    * below, which passes the real `Files.isExecutable`.
     */
-  private[harness] def findOnPath(pathEnv: String, name: String, exists: String => Boolean): Option[String] =
+  private[harness] def findOnPath(
+      pathEnv: String,
+      name: String,
+      exists: String => Boolean
+  ): Option[String] =
     pathEnv
       .split(java.io.File.pathSeparator)
       .toList
@@ -89,10 +100,10 @@ object Main:
     case Continue
     case Exit(code: Int)
 
-  /** loop.sh:931-943's `case` block: rc 0 (Success) and rc 40 (NeedsHuman) are the only two that
-    * do NOT `exit`; the driver logs and lets the `for` loop advance to the next iteration.
-    * Every other rc exits the process immediately. `LoopExit` is closed to exactly these 7
-    * cases, so there is no bash `*)` passthrough branch to reproduce here.
+  /** loop.sh:931-943's `case` block: rc 0 (Success) and rc 40 (NeedsHuman) are the only two that do
+    * NOT `exit`; the driver logs and lets the `for` loop advance to the next iteration. Every other
+    * rc exits the process immediately. `LoopExit` is closed to exactly these 7 cases, so there is
+    * no bash `*)` passthrough branch to reproduce here.
     */
   private[harness] def driverAction(exit: LoopExit): DriverAction = exit match
     case LoopExit.Success | LoopExit.NeedsHuman                => DriverAction.Continue
@@ -102,12 +113,55 @@ object Main:
 
   /** The exact bash log line for one iteration's outcome (loop.sh:932-941), copied byte-for-byte
     * including loop.sh's em-dash separator character. rc 50's notify already fires inside
-    * `Machine.runOnce` (Machine.scala:69, confirmed in the task report); this function only
-    * logs, it never notifies a second time.
+    * `Machine.runOnce` (Machine.scala:69, confirmed in the task report); this function only logs,
+    * it never notifies a second time.
     */
+  /** Marker path that identifies the harness repo root: bash's own `SCRIPT_DIR/..` is, by
+    * construction, the directory that contains `harness/loop.sh`.
+    */
+  private[harness] val RootMarker = "harness/loop.sh"
+
+  /** Resolves the repo root the way loop.sh:102-105 does — "wherever you invoked me from, the root
+    * is a fixed place", not "the root is wherever you happened to be standing".
+    *
+    * Bash gets that for free: `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"` /
+    * `REPO_ROOT="$SCRIPT_DIR/.."` / `cd "$REPO_ROOT"` derive the root from the script's OWN
+    * location, so `harness/loop.sh` works identically from any subdirectory. A scala-cli program
+    * has no equivalent: there is no reliable `BASH_SOURCE` for it (sources are compiled into a
+    * cache dir far from the repo, so neither the class location nor the code source URL points at
+    * `harness/scala`), so the location-derived form is simply unavailable.
+    *
+    * What IS available is the same INVARIANT bash relies on: the root is the unique ancestor
+    * directory containing `harness/loop.sh`. Walking up from the start directory to find it
+    * reproduces the "works from any subdirectory" guarantee for every invocation inside the repo,
+    * which is exactly the set of invocations bash supports. Deliberately preferred over `git
+    * rev-parse --show-toplevel`, which needs a subprocess, disagrees with bash inside submodules
+    * and worktrees, and answers a question (VCS boundary) that is not the one being asked.
+    *
+    * When no ancestor carries the marker, the caller must treat it as fatal: the previous behaviour
+    * — taking the cwd unchecked — made every subsequent path silently resolve wrong.
+    *
+    * TEST AFFORDANCE, deliberate: `exists` is the marker-file probe, injected on the same reasoning
+    * as `findOnPath`'s above, so the ancestor walk can be exercised against a synthetic tree
+    * instead of only ever finding this one real repo. THE ONLY PRODUCTION CALLER IS `main`, which
+    * passes the real `Files.isRegularFile`.
+    */
+  private[harness] def resolveRepoRoot(start: Path, exists: Path => Boolean): Either[String, Path] =
+    val from = start.toAbsolutePath.normalize
+    Iterator
+      .iterate(from)(_.getParent)
+      .takeWhile(_ != null)
+      .find(d => exists(d.resolve(RootMarker))) match
+      case Some(root) => Right(root)
+      case None       =>
+        Left(
+          s"not inside the harness repo: no ancestor of $from contains $RootMarker — run the harness from the repo"
+        )
+
   private[harness] def driverLog(i: Int, exit: LoopExit): String = exit match
-    case LoopExit.Success     => s"iteration $i done (SUCCESS — auto-merged, or PR -> needs-review)"
-    case LoopExit.NeedsHuman  => s"iteration $i done (FAIL terminal -> needs-human, PR open for audit)"
+    case LoopExit.Success    => s"iteration $i done (SUCCESS — auto-merged, or PR -> needs-review)"
+    case LoopExit.NeedsHuman =>
+      s"iteration $i done (FAIL terminal -> needs-human, PR open for audit)"
     case LoopExit.ManualStop  => "manual STOP.md — exiting"
     case LoopExit.Idle        => "no actionable issue — idle, exiting"
     case LoopExit.DryRun      => "dry run reached its stop point — exiting"
@@ -115,9 +169,9 @@ object Main:
     case LoopExit.InfraFault  => "infra fault — exiting for inspection (issue stays in-progress)"
 
   /** loop.sh:927-943: run up to `maxIters` ticks, applying the rc -> action map after each one.
-    * Returns the process exit code the caller must `sys.exit` with; `sys.exit` itself stays out
-    * of this function (and out of `driverAction`/`driverLog`) so the mapping logic is callable
-    * and testable without terminating the JVM.
+    * Returns the process exit code the caller must `sys.exit` with; `sys.exit` itself stays out of
+    * this function (and out of `driverAction`/`driverLog`) so the mapping logic is callable and
+    * testable without terminating the JVM.
     */
   private def runDriver(maxIters: Int)(using
       Config,
@@ -146,20 +200,23 @@ object Main:
     LiveLog.log(s"FATAL: $msg")
     sys.exit(1)
 
-  /** Runs build-image.sh / start-proxy.sh with inherited stdio, cwd=root, no args, matching how
-    * loop.sh invokes them (their output is not redirected in bash either).
+  /** Runs one of the sandbox preflight scripts (build-image.sh, start-proxy.sh) with cwd=root and
+    * no args. Their stdio is inherited so the operator sees the build/startup progress live,
+    * matching how loop.sh invokes them (their output is not redirected in bash either).
     */
-  private def runInherited(cwd: Path, script: Path): Int =
-    val pb = new ProcessBuilder(script.toString)
+  private def runPreflightScript(cwd: Path, script: Path): Int =
+    val pb = LiveProc.builder(Seq(script.toString))
     pb.directory(cwd.toFile)
     pb.inheritIO()
     pb.start().waitFor()
 
-  /** Runs stop-proxy.sh with both streams discarded, matching bash's EXIT-trap invocation
-    * verbatim (loop.sh:210: `"$SCRIPT_DIR/sandbox/stop-proxy.sh" >/dev/null 2>&1 || true`).
+  /** Runs the sandbox teardown script (stop-proxy.sh) on the way out, with cwd=root and no args.
+    * Both streams are discarded so shutdown noise never trails the harness's final output, matching
+    * bash's EXIT-trap invocation verbatim (loop.sh:210:
+    * `"$SCRIPT_DIR/sandbox/stop-proxy.sh" >/dev/null 2>&1 || true`).
     */
-  private def runDiscarded(cwd: Path, script: Path): Int =
-    val pb = new ProcessBuilder(script.toString)
+  private def runTeardownScript(cwd: Path, script: Path): Int =
+    val pb = LiveProc.builder(Seq(script.toString))
     pb.directory(cwd.toFile)
     pb.redirectOutput(ProcessBuilder.Redirect.DISCARD)
     pb.redirectError(ProcessBuilder.Redirect.DISCARD)
@@ -170,28 +227,37 @@ object Main:
   @main def harnessLoop(): Unit =
     val env = sys.env
 
-    // 1. root = cwd. loop.sh derives REPO_ROOT from its own script location (loop.sh:102-105);
-    // the Scala loop has no script location of its own (it's invoked as `scala-cli run
-    // harness/scala` from the repo root), so cwd stands in as the Scala equivalent of
-    // REPO_ROOT until the slice-4 shim (`exec scala-cli run harness/scala -- "$@"`) pins it.
-    val root = Paths.get("").toAbsolutePath
+    // 1. root = the nearest ancestor of the cwd containing harness/loop.sh, which is bash's
+    // REPO_ROOT (loop.sh:102-105) by construction. See resolveRepoRoot for why the ancestor walk
+    // stands in for bash's script-location derivation, and why a cwd that is not inside the repo
+    // is fatal here rather than silently wrong.
+    val root = resolveRepoRoot(Paths.get("").toAbsolutePath, Files.isRegularFile(_)) match
+      case Right(r)  => r
+      case Left(msg) => die(msg)
 
     // 2. Parse every env var (Part C), capturing gateOverridden before GATE_CMD's own default.
     val parsed = parseEnv(env)
 
-    // 3. JAVA_HOME pin block (loop.sh:176-192). DEVIATION FROM BASH: bash exports
-    // JAVA_HOME/PATH so the `sbt`/`claude` CHILD PROCESSES it forks pick up JDK 25 (yaes 0.20.0
-    // needs JDK 25's StructuredTaskScope API). This Scala loop is ITSELF already a JVM process
-    // (scala-cli's own `//> using jvm temurin:25` pin), spawns no host sbt/java children of its
-    // own, and never plumbs JAVA_HOME into the gate/agent subprocesses it does spawn: those are
-    // containerized, their JDK lives in the sandbox image, unaffected by the host JVM's
-    // JAVA_HOME. So mutating this JVM's own env would be a no-op with nothing downstream to
-    // observe it. Kept as a log-only check for outward env-var-surface parity (design decision
-    // #4 lists JAVA_HOME_PINNED as part of the "same env vars" contract).
+    // 3. JAVA_HOME pin block (loop.sh:176-192). Bash pins by exporting JAVA_HOME and
+    // PATH="$JAVA_HOME/bin:$PATH" so every CHILD it forks picks up JDK 25 (yaes 0.20.0 needs
+    // JDK 25's StructuredTaskScope API). A JVM cannot mutate its own environment, so the pin is
+    // instead handed to LiveProc, which stamps it onto the environment of every child the
+    // harness builds (LiveProc.builder is the single choke point). The default gate/agents are
+    // containerized and carry their own JDK, but a GATE_CMD override pointing at a host `sbt` is
+    // exactly the case bash's comment exists to protect, and it must get JDK 25 too.
+    // When the pinned JDK is missing, bash warns and pins NOTHING; `pinJdk(None)` matches that.
     val javaHomePinned =
-      env.getOrElse("JAVA_HOME_PINNED", s"${env.getOrElse("HOME", "")}/.sdkman/candidates/java/25.0.2-open")
-    if !Files.isExecutable(Path.of(javaHomePinned, "bin", "java")) then
-      LiveLog.log(s"WARNING: pinned JDK not at $javaHomePinned — gate runs under default java (may abort)")
+      env.getOrElse(
+        "JAVA_HOME_PINNED",
+        s"${env.getOrElse("HOME", "")}/.sdkman/candidates/java/25.0.2-open"
+      )
+    if Files.isExecutable(Path.of(javaHomePinned, "bin", "java")) then
+      LiveProc.pinJdk(Some(javaHomePinned))
+    else
+      LiveProc.pinJdk(None)
+      LiveLog.log(
+        s"WARNING: pinned JDK not at $javaHomePinned — gate runs under default java (may abort)"
+      )
 
     // 4. mkdir -p harness/logs (loop.sh:120-121: LOG_DIR="$SCRIPT_DIR/logs"; mkdir -p "$LOG_DIR").
     Files.createDirectories(root.resolve(Machine.LogDir))
@@ -208,26 +274,31 @@ object Main:
 
     // 6b. Sandbox preflight (loop.sh:198-211), skipped entirely when GATE_CMD is overridden.
     if !parsed.gateOverridden then
-      if env.getOrElse("CLAUDE_CODE_OAUTH_TOKEN", "").isEmpty && env.getOrElse("ANTHROPIC_API_KEY", "").isEmpty then
+      if env
+          .getOrElse("CLAUDE_CODE_OAUTH_TOKEN", "")
+          .isEmpty && env.getOrElse("ANTHROPIC_API_KEY", "").isEmpty
+      then
         die(
           "neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY set — the sandboxed worker/fixer has no other way to authenticate"
         )
-      if runInherited(root, root.resolve("harness/sandbox/build-image.sh")) != 0 then die("sandbox image build failed")
-      if runInherited(root, root.resolve("harness/sandbox/start-proxy.sh")) != 0 then die("sandbox proxy failed to start")
+      if runPreflightScript(root, root.resolve("harness/sandbox/build-image.sh")) != 0 then
+        die("sandbox image build failed")
+      if runPreflightScript(root, root.resolve("harness/sandbox/start-proxy.sh")) != 0 then
+        die("sandbox proxy failed to start")
       // loop.sh:210's `trap ... EXIT` equivalent: fires on normal completion, any sys.exit
       // (including from a later die()), or an uncaught exception; addShutdownHook guarantees
       // this the same way bash's EXIT trap does.
       sys.addShutdownHook {
-        try runDiscarded(root, root.resolve("harness/sandbox/stop-proxy.sh"))
+        try runTeardownScript(root, root.resolve("harness/sandbox/stop-proxy.sh"))
         catch case NonFatal(_) => 0
         ()
       }
 
     // 6c. Prompt template / conventions file existence (loop.sh:116-119, 212-215).
     val iteratePrompt = root.resolve("harness/iterate-prompt.md")
-    val fixPrompt      = root.resolve("harness/fix-prompt.md")
-    val reviewPrompt   = root.resolve("harness/review-prompt.md")
-    val conventions    = root.resolve("CONTEXT.md")
+    val fixPrompt     = root.resolve("harness/fix-prompt.md")
+    val reviewPrompt  = root.resolve("harness/review-prompt.md")
+    val conventions   = root.resolve("CONTEXT.md")
     for f <- List(iteratePrompt, fixPrompt, reviewPrompt) do
       if !Files.isRegularFile(f) then die(s"missing prompt template: $f")
     if !Files.isRegularFile(conventions) then die(s"missing conventions file: $conventions")
@@ -240,7 +311,14 @@ object Main:
     given GitHub        = LiveGitHub(root, parsed.ciAppearCmd, parsed.mergeCmd)
     given Git           = LiveGit(root)
     given AgentDispatch =
-      LiveAgentDispatch(root, timeoutBin, parsed.cfg.iterTimeout, parsed.implCmd, parsed.fixCmd, parsed.reviewCmd)
+      LiveAgentDispatch(
+        root,
+        timeoutBin,
+        parsed.cfg.iterTimeout,
+        parsed.implCmd,
+        parsed.fixCmd,
+        parsed.reviewCmd
+      )
     given GateRunner = LiveGateRunner(root, timeoutBin)
     given StatusLog  = LiveStatusLog(root, runId)
     given Notify     = LiveNotify(parsed.notifyCmd, parsed.ntfyTopic, LiveLog.log)

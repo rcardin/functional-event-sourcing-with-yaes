@@ -40,15 +40,15 @@ class MainSpec extends AnyFlatSpec with Matchers:
 
   it should "turn every non-empty seam env var into Some" in {
     val env = Map(
-      "GATE_CMD"    -> "stub-gate",
-      "IMPL_CMD"    -> "stub-impl",
-      "FIX_CMD"     -> "stub-fix",
-      "REVIEW_CMD"  -> "stub-review",
-      "NOTIFY_CMD"  -> "stub-notify",
-      "CI_WAIT_CMD" -> "stub-ci-wait",
+      "GATE_CMD"      -> "stub-gate",
+      "IMPL_CMD"      -> "stub-impl",
+      "FIX_CMD"       -> "stub-fix",
+      "REVIEW_CMD"    -> "stub-review",
+      "NOTIFY_CMD"    -> "stub-notify",
+      "CI_WAIT_CMD"   -> "stub-ci-wait",
       "CI_APPEAR_CMD" -> "stub-ci-appear",
-      "MERGE_CMD"   -> "stub-merge",
-      "NTFY_TOPIC"  -> "some-topic"
+      "MERGE_CMD"     -> "stub-merge",
+      "NTFY_TOPIC"    -> "some-topic"
     )
 
     val parsed = Main.parseEnv(env)
@@ -134,12 +134,21 @@ class MainSpec extends AnyFlatSpec with Matchers:
   }
 
   "driverLog" should "copy loop.sh's exact log lines, including the em-dash separator" in {
-    Main.driverLog(3, LoopExit.Success) shouldBe "iteration 3 done (SUCCESS — auto-merged, or PR -> needs-review)"
-    Main.driverLog(3, LoopExit.NeedsHuman) shouldBe "iteration 3 done (FAIL terminal -> needs-human, PR open for audit)"
+    Main.driverLog(
+      3,
+      LoopExit.Success
+    ) shouldBe "iteration 3 done (SUCCESS — auto-merged, or PR -> needs-review)"
+    Main.driverLog(
+      3,
+      LoopExit.NeedsHuman
+    ) shouldBe "iteration 3 done (FAIL terminal -> needs-human, PR open for audit)"
     Main.driverLog(3, LoopExit.ManualStop) shouldBe "manual STOP.md — exiting"
     Main.driverLog(3, LoopExit.Idle) shouldBe "no actionable issue — idle, exiting"
     Main.driverLog(3, LoopExit.DryRun) shouldBe "dry run reached its stop point — exiting"
-    Main.driverLog(3, LoopExit.NothingMade) shouldBe "iteration 3 produced nothing — exiting for inspection"
+    Main.driverLog(
+      3,
+      LoopExit.NothingMade
+    ) shouldBe "iteration 3 produced nothing — exiting for inspection"
     Main.driverLog(
       3,
       LoopExit.InfraFault
@@ -155,4 +164,51 @@ class MainSpec extends AnyFlatSpec with Matchers:
 
     Main.findOnPath(path, "gh", _ == "/usr/bin/gh") shouldBe Some("/usr/bin/gh")
     Main.findOnPath(path, "missing-tool", _ => false) shouldBe None
+  }
+
+  // ===============================================================================================
+  // resolveRepoRoot (loop.sh:102-105's SCRIPT_DIR/REPO_ROOT derivation)
+  // ===============================================================================================
+
+  /** Fake filesystem: the marker exists at exactly one absolute path. */
+  private def markerAt(root: java.nio.file.Path): java.nio.file.Path => Boolean =
+    p => p == root.resolve(Main.RootMarker)
+
+  "resolveRepoRoot" should "return the cwd when the cwd itself is the harness repo root" in {
+    val root = java.nio.file.Paths.get("/work/repo")
+
+    Main.resolveRepoRoot(root, markerAt(root)) shouldBe Right(root)
+  }
+
+  it should "walk up to the repo root when invoked from a subdirectory, as bash does" in {
+    val root = java.nio.file.Paths.get("/work/repo")
+
+    Main.resolveRepoRoot(root.resolve("harness/scala/src"), markerAt(root)) shouldBe Right(root)
+  }
+
+  it should "normalise the start path before walking (relative / dot segments)" in {
+    val root = java.nio.file.Paths.get("/work/repo")
+
+    Main.resolveRepoRoot(root.resolve("harness/./scala/.."), markerAt(root)) shouldBe Right(root)
+  }
+
+  it should "fail loudly instead of silently taking a cwd that is not inside the repo" in {
+    val root = java.nio.file.Paths.get("/work/repo")
+
+    val result = Main.resolveRepoRoot(java.nio.file.Paths.get("/somewhere/else"), markerAt(root))
+
+    result.isLeft shouldBe true
+    result.left.getOrElse("") should include(Main.RootMarker)
+    result.left.getOrElse("") should include("/somewhere/else")
+  }
+
+  it should "find the real repo root from this test run's own cwd" in {
+    val real = Main.resolveRepoRoot(
+      java.nio.file.Paths.get("").toAbsolutePath,
+      java.nio.file.Files.isRegularFile(_)
+    )
+
+    real.map(r => java.nio.file.Files.isRegularFile(r.resolve(Main.RootMarker))) shouldBe Right(
+      true
+    )
   }
