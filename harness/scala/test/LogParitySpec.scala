@@ -50,7 +50,7 @@ class LogParitySpec extends AnyFlatSpec with Matchers:
     w.logged("infra fault, not a code failure") shouldBe true
   }
 
-  it should "carry the protected-path needle (statemachine-test.sh:301, :530)" in {
+  it should "carry the protected-path needle (statemachine-test.sh:329, :558)" in {
     val w = TestWorld()
     w.implScript = WorkerScript.Produces("1\t0\tharness/evil.txt")
 
