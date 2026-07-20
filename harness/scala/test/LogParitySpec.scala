@@ -22,7 +22,7 @@ class LogParitySpec extends AnyFlatSpec with Matchers:
 
   // ---- the eight loop-stream needles the bash oracle greps for -----------------------------
 
-  "The log stream" should "carry the IMPL-timeout needle (statemachine-test.sh:213)" in {
+  "The log stream" should "carry the IMPL-timeout needle (statemachine-test.sh:241)" in {
     val w = TestWorld()
     w.implScript = WorkerScript.TimedOut
 
