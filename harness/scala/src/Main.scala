@@ -111,11 +111,6 @@ object Main:
     case LoopExit.NothingMade                                  => DriverAction.Exit(1)
     case LoopExit.InfraFault                                   => DriverAction.Exit(50)
 
-  /** The exact bash log line for one iteration's outcome (loop.sh:932-941), copied byte-for-byte
-    * including loop.sh's em-dash separator character. rc 50's notify already fires inside
-    * `Machine.runOnce` (Machine.scala:69, confirmed in the task report); this function only logs,
-    * it never notifies a second time.
-    */
   /** Marker path that identifies the harness repo root: bash's own `SCRIPT_DIR/..` is, by
     * construction, the directory that contains `harness/loop.sh`.
     */
@@ -158,6 +153,10 @@ object Main:
           s"not inside the harness repo: no ancestor of $from contains $RootMarker — run the harness from the repo"
         )
 
+  /** The exact bash log line for one iteration's outcome (loop.sh:932-941), copied byte-for-byte
+    * including loop.sh's em-dash separator character. rc 50's notify already fires inside
+    * `Machine.runOnce` (Machine.scala:69); this function only logs, it never notifies a second time.
+    */
   private[harness] def driverLog(i: Int, exit: LoopExit): String = exit match
     case LoopExit.Success    => s"iteration $i done (SUCCESS — auto-merged, or PR -> needs-review)"
     case LoopExit.NeedsHuman =>

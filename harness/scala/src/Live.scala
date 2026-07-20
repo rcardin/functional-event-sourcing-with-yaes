@@ -76,8 +76,10 @@ final class LiveHarnessFs(root: Path) extends HarnessFs:
   def read(path: String): String =
     readString(root.resolve(path))
 
+  /** 0 for a missing/non-regular file, matching bash `[[ -s ]]` on an absent path. */
   def sizeBytes(path: String): Long =
-    Files.size(root.resolve(path))
+    val p = root.resolve(path)
+    if Files.isRegularFile(p) then Files.size(p) else 0L
 
   private def readString(p: Path): String =
     new String(Files.readAllBytes(p), java.nio.charset.StandardCharsets.UTF_8)

@@ -162,6 +162,13 @@ class LiveSpec extends AnyFlatSpec with Matchers:
     fs.sizeBytes("a.txt") shouldBe 5L
   }
 
+  it should "report size 0 for a missing file instead of throwing" in {
+    val root = tempRoot()
+    val fs   = LiveHarnessFs(root)
+
+    fs.sizeBytes("harness/logs/never-created.patch") shouldBe 0L
+  }
+
   it should "report stopRequested false, then true after STOP.md is created" in {
     val root = tempRoot()
     val fs   = LiveHarnessFs(root)
