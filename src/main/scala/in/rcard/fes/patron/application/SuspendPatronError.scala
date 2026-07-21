@@ -1,9 +1,8 @@
-package in.rcard.fes.patron.domain
+package in.rcard.fes.patron.application
 
-import Domain.PatronId
+import in.rcard.fes.patron.domain.Domain.PatronId
 
-enum Error {
-  case AlreadyRegistered(id: PatronId)
+enum SuspendPatronError {
   case PatronNotFound(id: PatronId)
   case AlreadySuspended(id: PatronId)
   case UnexpectedError(message: String)

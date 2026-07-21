@@ -18,4 +18,13 @@ class PatronPostgresEventStoreSpec extends AnyFlatSpec with Matchers {
 
     decoded shouldBe Right(event)
   }
+
+  it should "round-trip Event.Suspended through encoding and decoding" in {
+    val event: Event = Event.Suspended(CARD_ID)
+
+    val json    = event.asJson.noSpaces
+    val decoded = decode[Event](json)
+
+    decoded shouldBe Right(event)
+  }
 }

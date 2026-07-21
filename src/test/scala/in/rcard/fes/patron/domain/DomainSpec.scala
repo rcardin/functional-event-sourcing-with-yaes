@@ -27,6 +27,12 @@ class DomainSpec extends AnyFlatSpec with Matchers {
     state.currentStatus(CARD_ID) shouldBe Status.NotRegistered
   }
 
+  it should "return Suspended after a Suspended event" in {
+    val state = PatronState.empty :+ Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT) :+ Event.Suspended(CARD_ID)
+
+    state.currentStatus(CARD_ID) shouldBe Status.Suspended
+  }
+
   "Domain.isRegistered" should "return true for a registered patron" in {
     val state = PatronState.empty :+ Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT)
 
@@ -41,5 +47,27 @@ class DomainSpec extends AnyFlatSpec with Matchers {
     val state = PatronState.empty :+ Event.Registered(OTHER_CARD_ID, PATRON_NAME, BORROW_LIMIT)
 
     state.isRegistered(CARD_ID) shouldBe false
+  }
+
+  it should "return true for a suspended patron" in {
+    val state = PatronState.empty :+ Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT) :+ Event.Suspended(CARD_ID)
+
+    state.isRegistered(CARD_ID) shouldBe true
+  }
+
+  "Domain.isSuspended" should "return true for a suspended patron" in {
+    val state = PatronState.empty :+ Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT) :+ Event.Suspended(CARD_ID)
+
+    state.isSuspended(CARD_ID) shouldBe true
+  }
+
+  it should "return false for an active patron" in {
+    val state = PatronState.empty :+ Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT)
+
+    state.isSuspended(CARD_ID) shouldBe false
+  }
+
+  it should "return false for an empty stream" in {
+    PatronState.empty.isSuspended(CARD_ID) shouldBe false
   }
 }
