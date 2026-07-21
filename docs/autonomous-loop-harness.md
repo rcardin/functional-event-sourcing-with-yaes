@@ -13,7 +13,7 @@ risk at the bare minimum.
 
 ```
 HUMAN-GATED FRONT END (once, up front)        AUTONOMOUS LOOP (unattended)
-  grill / brainstorm per epic         ──►       bash state machine over GitHub issues
+  grill / brainstorm per epic         ──►       typed state machine over GitHub issues
   writing-implementation-specs                  one narrow claude -p task per iteration
   github-triage -> GitHub issues                layered gate stack -> auto-merge
         (you review the batch)                  needs-human fallback
@@ -26,7 +26,7 @@ hands-off until `needs-human` fires.
 
 | Branch | Decision |
 |---|---|
-| Harness | External orchestration. Ralph bash loop, headless `claude -p`, **fresh context per iteration**. Durable state in git + GitHub issues + files; disposable context in the model. |
+| Harness | External orchestration. Ralph loop (bash through v6, Scala since the #44-#47 rewrite), headless `claude -p`, **fresh context per iteration**. Durable state in git + GitHub issues + files; disposable context in the model. |
 | Why not `/loop` | Single accumulating session → auto-compaction → context rot. Loses the smart zone by iter 5-6. Ralph starts cold at full quality every iteration. |
 | Task source | GitHub Issues (queue + done-marking + audit). Rich specs in `specs/` in-repo; issue links to its spec file. |
 | Granularity | **ATDD**: one acceptance criterion = one sub-task. Planning iter writes all acceptance tests red; each worker iter greens exactly one. US done = 0 red tests. |

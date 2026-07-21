@@ -1,6 +1,8 @@
 # Harness Scala rewrite — typed state machine over yaes capabilities
 
-Status: designed; implementation in progress (slice 1 complete)
+Status: slices 1-4 built; `harness/loop.sh` is now a shim over `harness/scala`. Remaining before
+the rewrite is done: one real class-1 US end-to-end under the Scala loop, then delete
+`harness/loop-bash.sh` and retire `harness/test/statemachine-test.sh`
 Date: 2026-07-19
 Builds on: harness v6 slice 4 (`harness/loop.sh`, PR #40), observability v5 (`harness/watch.sh`)
 
