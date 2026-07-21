@@ -34,12 +34,45 @@ class PatronDeciderSpec extends AnyFlatSpec with RaiseSpec with Matchers {
     actualResult shouldBe Error.AlreadyRegistered(CARD_ID)
   }
 
+  "PatronDecider.decide" should "suspend a patron that is active" in {
+    val command = Command.Suspend(CARD_ID)
+    val state   = PatronState.empty :+ Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT)
+
+    val actualResult = failOnRaise { underTest.decide(command, state) }
+
+    actualResult should contain only Event.Suspended(CARD_ID)
+  }
+
+  it should "not suspend a patron that was never registered" in {
+    val command = Command.Suspend(CARD_ID)
+    val state   = PatronState.empty
+
+    val actualResult = interceptRaised { underTest.decide(command, state) }
+
+    actualResult shouldBe Error.PatronNotFound(CARD_ID)
+  }
+
+  it should "not suspend a patron that is already suspended" in {
+    val command = Command.Suspend(CARD_ID)
+    val state   = PatronState.empty :+ Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT) :+ Event.Suspended(CARD_ID)
+
+    val actualResult = interceptRaised { underTest.decide(command, state) }
+
+    actualResult shouldBe Error.AlreadySuspended(CARD_ID)
+  }
+
   "PatronDecider.isTerminal" should "return false for an empty state" in {
     underTest.isTerminal(PatronState.empty) shouldBe false
   }
 
   it should "return false after a patron was registered" in {
     val state = PatronState.empty :+ Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT)
+
+    underTest.isTerminal(state) shouldBe false
+  }
+
+  it should "return false after a patron was suspended" in {
+    val state = PatronState.empty :+ Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT) :+ Event.Suspended(CARD_ID)
 
     underTest.isTerminal(state) shouldBe false
   }

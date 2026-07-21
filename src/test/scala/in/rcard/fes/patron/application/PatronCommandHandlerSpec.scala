@@ -204,4 +204,39 @@ class PatronCommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec 
     error shouldBe Error.AlreadyRegistered(CARD_ID)
     store.savedEvents(CARD_ID) shouldBe Seq(Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT))
   }
+
+  it should "suspend an active patron via the live handler" in withSync {
+    val store                             = InMemoryEventStore()
+    given PatronDecider                   = decider
+    given EventStorePort[PatronId, Event] = store
+    val underTest                         = PatronCommandHandler.live
+
+    failOnRaise[Error, Seq[Event]] {
+      underTest.handle(CARD_ID, registerCmd)
+    }
+
+    val result = failOnRaise[Error, Seq[Event]] {
+      underTest.handle(CARD_ID, Command.Suspend(CARD_ID))
+    }
+
+    result shouldBe Seq(Event.Suspended(CARD_ID))
+    store.savedEvents(CARD_ID) shouldBe Seq(
+      Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT),
+      Event.Suspended(CARD_ID)
+    )
+  }
+
+  it should "raise PatronNotFound when suspending an unknown patron via the live handler" in withSync {
+    val store                             = InMemoryEventStore()
+    given PatronDecider                   = decider
+    given EventStorePort[PatronId, Event] = store
+    val underTest                         = PatronCommandHandler.live
+
+    val error = interceptRaised[Error, Seq[Event]] {
+      underTest.handle(NOT_REGISTERED_CARD_ID, Command.Suspend(NOT_REGISTERED_CARD_ID))
+    }
+
+    error shouldBe Error.PatronNotFound(NOT_REGISTERED_CARD_ID)
+    store.savedEvents(NOT_REGISTERED_CARD_ID) shouldBe Seq.empty
+  }
 }

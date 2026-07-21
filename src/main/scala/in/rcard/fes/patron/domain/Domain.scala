@@ -8,18 +8,21 @@ object Domain {
   }
 
   enum Status {
-    case NotRegistered, Active
+    case NotRegistered, Active, Suspended
   }
 
   extension (patronState: PatronState) {
     def currentStatus(id: PatronId): Status =
       patronState.reverseIterator
-        .collectFirst { case Event.Registered(`id`, _, _) =>
-          Status.Active
+        .collectFirst {
+          case Event.Registered(`id`, _, _) => Status.Active
+          case Event.Suspended(`id`)        => Status.Suspended
         }
         .getOrElse(Status.NotRegistered)
 
     def isRegistered(id: PatronId): Boolean = patronState.currentStatus(id) != Status.NotRegistered
+
+    def isSuspended(id: PatronId): Boolean = patronState.currentStatus(id) == Status.Suspended
   }
 
   opaque type PatronId = String

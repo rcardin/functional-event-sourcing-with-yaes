@@ -15,6 +15,9 @@ object Fixtures {
   private[patron] val UNEXPECTED_CARD_ID_VALUE = "unexpected-card"
   private[patron] val UNEXPECTED_CARD_ID       = Domain.PatronId(UNEXPECTED_CARD_ID_VALUE)
 
+  private[patron] val ALREADY_SUSPENDED_CARD_ID_VALUE = "already-suspended-card"
+  private[patron] val ALREADY_SUSPENDED_CARD_ID       = Domain.PatronId(ALREADY_SUSPENDED_CARD_ID_VALUE)
+
   private[patron] val PATRON_NAME_VALUE = "Ada Lovelace"
   private[patron] val PATRON_NAME       = Domain.PatronName(PATRON_NAME_VALUE)
 
