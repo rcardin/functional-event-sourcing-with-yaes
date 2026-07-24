@@ -239,4 +239,43 @@ class PatronCommandHandlerSpec extends AnyFlatSpec with SyncSpec with RaiseSpec 
     error shouldBe Error.PatronNotFound(NOT_REGISTERED_CARD_ID)
     store.savedEvents(NOT_REGISTERED_CARD_ID) shouldBe Seq.empty
   }
+
+  it should "reinstate a suspended patron via the live handler" in withSync {
+    val store                             = InMemoryEventStore()
+    given PatronDecider                   = decider
+    given EventStorePort[PatronId, Event] = store
+    val underTest                         = PatronCommandHandler.live
+
+    failOnRaise[Error, Seq[Event]] {
+      underTest.handle(CARD_ID, registerCmd)
+    }
+    failOnRaise[Error, Seq[Event]] {
+      underTest.handle(CARD_ID, Command.Suspend(CARD_ID))
+    }
+
+    val result = failOnRaise[Error, Seq[Event]] {
+      underTest.handle(CARD_ID, Command.Reinstate(CARD_ID))
+    }
+
+    result shouldBe Seq(Event.Reinstated(CARD_ID))
+    store.savedEvents(CARD_ID) shouldBe Seq(
+      Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT),
+      Event.Suspended(CARD_ID),
+      Event.Reinstated(CARD_ID)
+    )
+  }
+
+  it should "raise PatronNotFound when reinstating an unknown patron via the live handler and write nothing" in withSync {
+    val store                             = InMemoryEventStore()
+    given PatronDecider                   = decider
+    given EventStorePort[PatronId, Event] = store
+    val underTest                         = PatronCommandHandler.live
+
+    val error = interceptRaised[Error, Seq[Event]] {
+      underTest.handle(NOT_REGISTERED_CARD_ID, Command.Reinstate(NOT_REGISTERED_CARD_ID))
+    }
+
+    error shouldBe Error.PatronNotFound(NOT_REGISTERED_CARD_ID)
+    store.savedEvents(NOT_REGISTERED_CARD_ID) shouldBe Seq.empty
+  }
 }

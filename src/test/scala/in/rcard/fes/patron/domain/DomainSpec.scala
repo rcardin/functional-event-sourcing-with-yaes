@@ -33,6 +33,22 @@ class DomainSpec extends AnyFlatSpec with Matchers {
     state.currentStatus(CARD_ID) shouldBe Status.Suspended
   }
 
+  it should "return Active after a Reinstated event, last lifecycle event wins" in {
+    val state = PatronState.empty :+
+      Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT) :+
+      Event.Suspended(CARD_ID) :+
+      Event.Reinstated(CARD_ID)
+
+    state.currentStatus(CARD_ID) shouldBe Status.Active
+    state.isSuspended(CARD_ID) shouldBe false
+  }
+
+  it should "still return Suspended when the stream ends on the Suspended event" in {
+    val state = PatronState.empty :+ Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT) :+ Event.Suspended(CARD_ID)
+
+    state.currentStatus(CARD_ID) shouldBe Status.Suspended
+  }
+
   "Domain.isRegistered" should "return true for a registered patron" in {
     val state = PatronState.empty :+ Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT)
 

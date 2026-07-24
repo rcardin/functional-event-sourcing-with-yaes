@@ -26,7 +26,7 @@ object RegisterPatronUseCase {
       } {
         case Error.AlreadyRegistered(id) =>
           Raise.raise(RegisterPatronError.AlreadyRegistered(id))
-        case Error.PatronNotFound(_) | Error.AlreadySuspended(_) =>
+        case Error.PatronNotFound(_) | Error.AlreadySuspended(_) | Error.NotSuspended(_) =>
           Raise.raise(RegisterPatronError.UnexpectedError("Unexpected state while registering a patron"))
         case Error.UnexpectedError(msg) =>
           Raise.raise(RegisterPatronError.UnexpectedError(msg))

@@ -23,7 +23,7 @@ object SuspendPatronUseCase {
           Raise.raise(SuspendPatronError.PatronNotFound(patronId))
         case Error.AlreadySuspended(patronId) =>
           Raise.raise(SuspendPatronError.AlreadySuspended(patronId))
-        case Error.AlreadyRegistered(_) =>
+        case Error.AlreadyRegistered(_) | Error.NotSuspended(_) =>
           Raise.raise(SuspendPatronError.UnexpectedError("Unexpected state while suspending a patron"))
         case Error.UnexpectedError(msg) =>
           Raise.raise(SuspendPatronError.UnexpectedError(msg))
