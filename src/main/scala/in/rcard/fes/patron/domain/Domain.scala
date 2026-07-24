@@ -17,6 +17,7 @@ object Domain {
         .collectFirst {
           case Event.Registered(`id`, _, _) => Status.Active
           case Event.Suspended(`id`)        => Status.Suspended
+          case Event.Reinstated(`id`)       => Status.Active
         }
         .getOrElse(Status.NotRegistered)
 

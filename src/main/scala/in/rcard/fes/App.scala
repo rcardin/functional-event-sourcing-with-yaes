@@ -11,6 +11,7 @@ import in.rcard.fes.copy.application.CopyCommandHandler.live
 import in.rcard.fes.copy.infrastructure.CopyPostgresEventStore.live
 import in.rcard.fes.copy.infrastructure.FindCopyByIsbnRepository.live
 import in.rcard.fes.patron.adapter.RegisterPatronRoute
+import in.rcard.fes.patron.adapter.ReinstatePatronRoute
 import in.rcard.fes.patron.adapter.SuspendPatronRoute
 import in.rcard.fes.patron.application.PatronCommandHandler.live
 import in.rcard.fes.patron.infrastructure.PatronPostgresEventStore.live
@@ -69,7 +70,8 @@ class App extends YaesApp {
       summon[RepairCopyRoute].repairCopyRoute,
       summon[RemoveCopyRoute].removeCopyRoute,
       summon[RegisterPatronRoute].registerPatronRoute,
-      summon[SuspendPatronRoute].suspendPatronRoute
+      summon[SuspendPatronRoute].suspendPatronRoute,
+      summon[ReinstatePatronRoute].reinstatePatronRoute
     )
   }
 

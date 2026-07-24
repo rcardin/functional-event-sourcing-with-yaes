@@ -61,6 +61,57 @@ class PatronDeciderSpec extends AnyFlatSpec with RaiseSpec with Matchers {
     actualResult shouldBe Error.AlreadySuspended(CARD_ID)
   }
 
+  "PatronDecider.decide" should "reinstate a patron that is suspended" in {
+    val command = Command.Reinstate(CARD_ID)
+    val state   = PatronState.empty :+ Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT) :+ Event.Suspended(CARD_ID)
+
+    val actualResult = failOnRaise { underTest.decide(command, state) }
+
+    actualResult should contain only Event.Reinstated(CARD_ID)
+  }
+
+  it should "not reinstate a patron that was never registered" in {
+    val command = Command.Reinstate(CARD_ID)
+    val state   = PatronState.empty
+
+    val actualResult = interceptRaised { underTest.decide(command, state) }
+
+    actualResult shouldBe Error.PatronNotFound(CARD_ID)
+  }
+
+  it should "not reinstate a patron that was registered but never suspended" in {
+    val command = Command.Reinstate(CARD_ID)
+    val state   = PatronState.empty :+ Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT)
+
+    val actualResult = interceptRaised { underTest.decide(command, state) }
+
+    actualResult shouldBe Error.NotSuspended(CARD_ID)
+  }
+
+  it should "not reinstate a patron that was already reinstated" in {
+    val command = Command.Reinstate(CARD_ID)
+    val state = PatronState.empty :+
+      Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT) :+
+      Event.Suspended(CARD_ID) :+
+      Event.Reinstated(CARD_ID)
+
+    val actualResult = interceptRaised { underTest.decide(command, state) }
+
+    actualResult shouldBe Error.NotSuspended(CARD_ID)
+  }
+
+  it should "re-suspend a patron after it was reinstated" in {
+    val command = Command.Suspend(CARD_ID)
+    val state = PatronState.empty :+
+      Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT) :+
+      Event.Suspended(CARD_ID) :+
+      Event.Reinstated(CARD_ID)
+
+    val actualResult = failOnRaise { underTest.decide(command, state) }
+
+    actualResult should contain only Event.Suspended(CARD_ID)
+  }
+
   "PatronDecider.isTerminal" should "return false for an empty state" in {
     underTest.isTerminal(PatronState.empty) shouldBe false
   }
@@ -73,6 +124,15 @@ class PatronDeciderSpec extends AnyFlatSpec with RaiseSpec with Matchers {
 
   it should "return false after a patron was suspended" in {
     val state = PatronState.empty :+ Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT) :+ Event.Suspended(CARD_ID)
+
+    underTest.isTerminal(state) shouldBe false
+  }
+
+  it should "return false after a patron was reinstated" in {
+    val state = PatronState.empty :+
+      Event.Registered(CARD_ID, PATRON_NAME, BORROW_LIMIT) :+
+      Event.Suspended(CARD_ID) :+
+      Event.Reinstated(CARD_ID)
 
     underTest.isTerminal(state) shouldBe false
   }
